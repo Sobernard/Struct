@@ -1,2 +1,3 @@
 -R /user/sbernard/home/Work/math-comp-master/mathcomp mathcomp
 -R /user/sbernard/home/Work/Struct structs
+-R /user/sbernard/home/Work/coquelicot-2.1.2 coquelicot

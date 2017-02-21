@@ -25,14 +25,19 @@ Definition complexR := R[i].
 
 Canonical complexR_eqType := [eqType of complexR].
 Canonical complexR_choiceType := [choiceType of complexR].
+Canonical complexR_countype := [choiceType of complexR].
 Canonical complexR_zmodType := [zmodType of complexR].
+Canonical complexR_lmodType := Eval hnf in [lmodType R of complexR].
 Canonical complexR_ringType := [ringType of complexR].
 Canonical complexR_comRingType := [comRingType of complexR].
+Canonical complexR_lalgType := Eval hnf in [lalgType R of complexR].
+Canonical complexR_algType := Eval hnf in [algType R of complexR].
 Canonical complexR_unitRingType := [unitRingType of complexR].
 Canonical complexR_comUnitRingType := [comUnitRingType of complexR].
+Canonical complexR_unitAlgType := Eval hnf in [unitAlgType R of complexR].
 Canonical complexR_idomainType := [idomainType of complexR].
 Canonical complexR_fieldType := [fieldType of complexR].
-Canonical complexR_decFieldType := [decFieldType of complexR].
+Canonical complexR_decDieldType := [decFieldType of complexR].
 Canonical complexR_closedFieldType := [closedFieldType of complexR].
 Canonical complexR_numDomainType := [numDomainType of complexR].
 Canonical complexR_numFieldType := [numFieldType of complexR].
@@ -40,6 +45,52 @@ Canonical complexR_numClosedFieldType := [numClosedFieldType of complexR].
 Canonical complexR_numArchiDomainType := [numArchiDomainType of complexR].
 Canonical complexR_numArchiFieldType := [numArchiFieldType of complexR].
 Canonical complexR_numArchiClosedFieldType := [numArchiClosedFieldType of complexR].
+
+(*
+Canonical complexR_eqType := complex_eqType R_eqType.
+(*[eqType of complexR].*)
+Canonical complexR_choiceType := complex_choiceType R_choiceType.
+(*[choiceType of complexR].*)
+Canonical complexR_zmodType := ComplexField.complex_zmodType R_rcfType.
+(*[zmodType of complexR].*)
+Canonical complexR_lmodType := ComplexField.complex_lmodType R_rcfType.
+(*Eval hnf in [lmodType _ of complexR].*)
+Canonical complexR_ringType := ComplexField.complex_ringType R_rcfType.
+(*[ringType of complexR].*)
+Canonical complexR_comRingType := ComplexField.complex_comRingType R_rcfType.
+(*[comRingType of complexR].*)
+Canonical complexR_lalgType := ComplexField.complex_lalgType R_rcfType.
+Canonical complexR_algType := ComplexField.complex_algType R_rcfType.
+Canonical complexR_unitRingType := ComplexField.complex_unitRingType R_rcfType.
+(*[unitRingType of complexR].*)
+Canonical complexR_comUnitRingType := ComplexField.complex_comUnitRingType R_rcfType.
+(*[comUnitRingType of complexR].*)
+Canonical complexR_unitAlgType := ComplexField.complex_unitAlgType R_rcfType.
+Canonical complexR_idomainType := ComplexField.complex_idomainType R_rcfType.
+(*[idomainType of complexR].*)
+Canonical complexR_fieldType := ComplexField.complex_fieldType R_rcfType.
+(*[fieldType of complexR].*)
+Canonical complexR_decFieldType := complex_decField R_rcfType.
+(*[decFieldType of complexR].*)
+Canonical complexR_closedFieldType := complex_closedField R_rcfType.
+(*[closedFieldType of complexR].*)
+Canonical complexR_numDomainType := ComplexField.complex_numDomainType R_rcfType.
+(*[numDomainType of complexR].*)
+Canonical complexR_numFieldType := ComplexField.complex_numFieldType R_rcfType.
+(*[numFieldType of complexR].*)
+Canonical complexR_numClosedFieldType := 
+  complex_numClosedFieldType R_realClosedArchiFieldType.
+(*[numClosedFieldType of complexR].*)
+Canonical complexR_numArchiDomainType := 
+  complex_numArchiDomain R_realClosedArchiFieldType.
+(*[numArchiDomainType of complexR].*)
+Canonical complexR_numArchiFieldType := 
+  ComplexField.complex_numDomainType R_realClosedArchiFieldType.
+(*[numArchiFieldType of complexR].*)
+Canonical complexR_numArchiClosedFieldType := 
+  ComplexField.complex_numDomainType R_realClosedArchiFieldType.
+(*[numArchiClosedFieldType of complexR].*)
+*)
 
 (* Récupération des notations *)
 
@@ -63,9 +114,14 @@ Definition ZtoCE :=
    =^~ (@ler_int CnF, @ltr_int CnF, (inj_eq (@intr_inj CnF)))).
 
 (* retour à R depuis les complexes *)
-Notation Re_R := complex.Re.
-Notation Im_R := complex.Im.
+Notation Re_R := (@complex.Re R_rcfType).
+Notation Im_R := (@complex.Im R_rcfType).
 Notation norm_R := ComplexField.normc.
+
+Canonical Re_R_additive := [additive of Re_R].
+Canonical Re_R_linear := [linear of Re_R].
+Canonical Im_R_additive := [additive of Im_R].
+Canonical Im_R_linear := [linear of Im_R].
 
 Notation RtoC := (real_complex R).
 
@@ -136,8 +192,9 @@ elim => [|n Ihn]; rewrite !C_simpl; first by rewrite Cexp0.
 by rewrite Ihn Cexp_morph.
 Qed.
 
-
-
+Lemma CscaleE (x : R) (y : complexR) :
+  x *: y = RtoC x * y.
+Proof. by case: y => [yr yi]; rewrite /GRing.scale /= /RtoC; simpc. Qed.
 
 Module ComplexTotalOrder.
 

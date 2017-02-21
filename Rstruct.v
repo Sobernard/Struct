@@ -428,4 +428,16 @@ Lemma cos_add x y :
    cos (GRing.add x y) = (cos x * cos y - sin x * sin y).
 Proof. by rewrite cos_plus. Qed. 
 
+Lemma sqrt_R x : 0 <= x -> Num.sqrt x = sqrt x.
+Proof.
+move => x0; apply/eqP; have [t1 t2] := conj (sqrtr_ge0 x) (sqrt_pos x).
+have two0 : (0 < 2)%N by [].
+rewrite -(@eqr_expn2 _ 2%nat _ _ two0 t1); last by apply /RleP.
+rewrite sqr_sqrtr // !exprS expr0 mulr1 -Rmult_mul ?sqrt_sqrt //; by apply/RleP.
+Qed.
+
+Lemma exp_R x n : pow x n = x ^+ n.
+Proof. by elim: n => [ | n In] //=; rewrite exprS In Rmult_mul. Qed.
+
+
 End ssreal_struct.
