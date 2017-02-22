@@ -1010,7 +1010,7 @@ by move=>y; rewrite hornerMXaddC.
 Qed.
 
 Lemma ex_Crderive_Cexp (a : complexR) (x : R) :
-  ex_derive (fun y : R_NormedModule => Cexp(a * RtoC y) : Cr_R_NormedModule) x.
+  ex_derive (fun y : R_NormedModule => Cexp(y *: a) : Cr_R_NormedModule) x.
 Proof.
 apply: (ex_derive_ext (fun y => (RtoC (exp ((Re_R a) * y))) 
  * (RtoC (cos((Im_R a)*y)) + 'i * RtoC(sin((Im_R a)*y)) ) : Cr_R_NormedModule)).
@@ -1032,8 +1032,8 @@ apply/ex_Crderive_RtoC; apply/ex_derive_comp.
 Qed.
 
 Lemma Crderive_Cexp (a : complexR) (x : R) :
-  Crderive (fun y => Cexp(a * RtoC y)) x =
-    a * Cexp(a * RtoC x).
+  Crderive (fun y => Cexp(y *: a)) x =
+    a * Cexp(x *: a).
 Proof.
 rewrite (@Crderive_ext _ (fun y => (RtoC (exp ((Re_R a) * y))) 
  * (RtoC (cos((Im_R a)*y)) + 'i * RtoC(sin((Im_R a)*y)) )));
@@ -1112,8 +1112,8 @@ rewrite Derive_mult; first last.
   by apply: ex_derive_const.
 rewrite Derive_const Derive_id.
 rewrite -(Derive_Reals sin _ (derivable_pt_sin (Im_R a * x))).
-rewrite derive_pt_sin !Rmult_mul !Rplus_add /Cexp !RtoCE /=. simpc.
-rewrite ![ a * RtoC _]mulrC -!Cr_scalE !linearZ /= ![x * _]mulrC.
+rewrite derive_pt_sin !Rmult_mul !Rplus_add /Cexp !RtoCE /=; simpc.
+rewrite -!Cr_scalE !linearZ /= ![x * _]mulrC.
 rewrite -!scalerAl -!Cr_scalE -scalerAr -scalerDr.
 set b1 := (Im_R a) * x; set b2 := (Re_R a) * x.
 set C1 := RtoC _; set S1 := RtoC _.
