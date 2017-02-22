@@ -23,7 +23,7 @@ Require Import Epsilon FunctionalExtensionality Ranalysis1 Rsqrt_def.
 Require Import Rtrigo1 Reals.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
 From mathcomp Require Import choice bigop ssralg fintype poly.
-From mathcomp Require Import mxpoly ssrnum.
+From mathcomp Require Import mxpoly ssrnum finfun.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -438,6 +438,147 @@ Qed.
 
 Lemma exp_R x n : pow x n = x ^+ n.
 Proof. by elim: n => [ | n In] //=; rewrite exprS In Rmult_mul. Qed.
+
+
+
+(* bigop pour le max pour des listes non vides ? *)
+Definition bigmaxr (x0 : R) lr :=
+  foldr Num.max (head x0 lr) (behead lr).
+
+Lemma bigmaxr_nil x0 : bigmaxr x0 [::] = x0.
+Proof. by rewrite /bigmaxr. Qed.
+
+Lemma bigmaxr_un x0 x :
+  bigmaxr x0 [:: x] = x.
+Proof. by rewrite /bigmaxr. Qed.
+
+Lemma bigmaxr_cons x0 x y lr :
+  bigmaxr x0 (x :: y :: lr) = Num.max x (bigmaxr x0 (y :: lr)).
+Proof.
+rewrite /bigmaxr /=; elim: lr => [/= | a lr /=].
+  by rewrite maxrC.
+set b := foldr _ _ _; set c := foldr _ _ _ => H.
+by rewrite [Num.max a b]maxrC maxrA H -maxrA (maxrC c a).
+Qed.
+
+Lemma bigmaxr_ler x0 lr i :
+  (i < size lr)%N -> (nth x0 lr i) <= (bigmaxr x0 lr).
+Proof.
+case: lr i => [i | x lr]; first by rewrite nth_nil bigmaxr_nil lerr.
+elim: lr x => [x i /= | x lr /= ihlr y i i_size].
+  by rewrite ltnS leqn0 => /eqP ->; rewrite nth0 bigmaxr_un /=.
+rewrite bigmaxr_cons /=; case: i i_size => [_ /= | i]. 
+  by rewrite ler_maxr lerr.
+rewrite ltnS /=; move/(ihlr x); move/(ler_trans)=> H; apply: H.
+by rewrite ler_maxr lerr orbT.
+Qed.
+
+(* Compatibilité avec l'addition *)
+Lemma bigmaxr_addr x0 lr x :
+  bigmaxr (x0 + x) (map (fun y => y + x) lr) = (bigmaxr x0 lr) + x.
+Proof.
+case: lr => [/= | y lr]; first by rewrite bigmaxr_nil.
+elim: lr y => [y | y lr ihlr z]; first by rewrite /= !bigmaxr_un.
+by rewrite map_cons !bigmaxr_cons ihlr addr_maxl.
+Qed.
+
+Lemma bigmaxr_index x0 lr :
+  (0 < size lr)%N -> (index (bigmaxr x0 lr) lr < size lr)%N.
+Proof.
+case: lr => [//= | x l _].
+elim: l x => [x | x lr]; first by rewrite bigmaxr_un /= eq_refl.
+move/(_ x); set z := bigmaxr _ _ => /= ihl y; rewrite bigmaxr_cons /Num.max -/z.
+case: (z <= y); first by rewrite eq_refl.
+by case: (y == z); rewrite //.
+Qed.
+
+Lemma bigmaxr_mem x0 lr :
+  (0 < size lr)%N -> bigmaxr x0 lr \in lr.
+Proof. by move/(bigmaxr_index x0); rewrite index_mem. Qed.
+
+Lemma bigmaxr_lerP x0 lr x :
+  (0 < size lr)%N ->
+  reflect (forall i, (i < size lr)%N -> (nth x0 lr i) <= x) ((bigmaxr x0 lr) <= x).
+Proof.
+move=> lr_size; apply: (iffP idP) => [le_x i i_size | H].
+  by apply: (ler_trans _ le_x); apply: bigmaxr_ler.
+by move/(nthP x0): (bigmaxr_mem x0 lr_size) => [i i_size <-]; apply: H.
+Qed.
+
+Lemma bigmaxrP x0 lr x :
+  (x \in lr /\ forall i, (i < size lr) %N -> (nth x0 lr i) <= x) -> (bigmaxr x0 lr = x).
+Proof.
+move=> [] /(nthP x0) [] j j_size j_nth x_ler; apply: ler_asym; apply/andP; split.
+  by apply/bigmaxr_lerP => //; apply: (leq_trans _ j_size).
+by rewrite -j_nth (bigmaxr_ler _ j_size).
+Qed.
+
+(* surement à supprimer à la fin 
+Lemma bigmaxc_lttc x0 lc :
+  uniq lc -> forall i, (i < size lc)%N -> (i != index (bigmaxc x0 lc) lc)
+    -> lttc (nth x0 lc i) (bigmaxc x0 lc).
+Proof.
+move=> lc_uniq Hi size_i /negP neq_i.
+rewrite lttc_neqAle (bigmaxc_letc _ size_i) andbT.
+apply/negP => /eqP H; apply: neq_i; rewrite -H eq_sym; apply/eqP.
+by apply: index_uniq.
+Qed. *)
+
+Lemma bigmaxr_lerif x0 lr :
+  uniq lr -> forall i, (i < size lr)%N ->
+     (nth x0 lr i) <= (bigmaxr x0 lr) ?= iff (i == index (bigmaxr x0 lr) lr).
+Proof.
+move=> lr_uniq i i_size; rewrite /lerif (bigmaxr_ler _ i_size).
+rewrite -(nth_uniq x0 i_size (bigmaxr_index _ (leq_trans _ i_size)) lr_uniq) //.
+rewrite nth_index //.
+by apply: bigmaxr_mem; apply: (leq_trans _ i_size).
+Qed.
+
+
+(* bigop pour le max pour des listes non vides ? *)
+Definition bmaxrf n (f : {ffun 'I_n.+1 -> R}) :=
+  bigmaxr (f ord0) (codom f).
+
+Lemma bmaxrf_ler n (f : {ffun 'I_n.+1 -> R}) i :
+  (f i) <= (bmaxrf f).
+Proof.
+move: (@bigmaxr_ler (f ord0) (codom f) (nat_of_ord i)).
+rewrite /bmaxrf size_codom card_ord => H; move: (ltn_ord i); move/H.
+suff -> : nth (f ord0) (codom f) i = f i; first by [].
+by rewrite /codom (nth_map ord0) ?size_enum_ord // nth_ord_enum.
+Qed.
+
+Lemma bmaxrf_index n (f : {ffun 'I_n.+1 -> R}) :
+  (index (bmaxrf f) (codom f) < n.+1)%N.
+Proof.
+rewrite /bmaxrf.
+have {6}-> : n.+1 = size (codom f) by rewrite size_codom card_ord.
+by apply: bigmaxr_index; rewrite size_codom card_ord.
+Qed.
+
+Definition index_bmaxrf n f := Ordinal (@bmaxrf_index n f).
+
+Lemma ordnat i n (ord_i : (i < n)%N) :
+  i = nat_of_ord (Ordinal ord_i).
+Proof. by []. Qed.
+
+Lemma eq_index_bmaxrf n (f : {ffun 'I_n.+1 -> R}) :
+  f (index_bmaxrf f) = bmaxrf f.
+Proof.
+move: (bmaxrf_index f).
+rewrite -{3}[n.+1]card_ord -(size_codom f) index_mem.
+move/(nth_index (f ord0)) => <-; rewrite (nth_map ord0).
+  by rewrite (ordnat (bmaxrf_index _)) /index_bmaxrf nth_ord_enum.
+by rewrite size_enum_ord; apply: bmaxrf_index.
+Qed.
+
+Lemma bmaxrf_lerif n (f : {ffun 'I_n.+1 -> R}) :
+  injective f -> forall i,
+     (f i) <= (bmaxrf f) ?= iff (i == index_bmaxrf f).
+Proof.
+by move=> inj_f i; rewrite /lerif bmaxrf_ler -(inj_eq inj_f) eq_index_bmaxrf.
+Qed.
+
 
 
 End ssreal_struct.

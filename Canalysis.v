@@ -535,7 +535,7 @@ by apply: Crcontinuity_pt_idR.
 Qed.
 
 Lemma Crcontinuity_pt_exp (a : complexR) (x : R) :
-  Crcontinuity_pt (fun y => Cexp(a * RtoC y)) x.
+  Crcontinuity_pt (fun y => Cexp(y *: a)) x.
 Proof.
 apply: (@Crcontinuity_pt_ext (fun y => (RtoC (exp ((Re_R a) * y))) 
           * (RtoC (cos((Im_R a)*y)) + 'i * RtoC(sin((Im_R a)*y)) ))).
