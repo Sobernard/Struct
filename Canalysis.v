@@ -303,6 +303,16 @@ have h : forall x , Rmult x x = x ^+ 2.
 by rewrite sqrt_R ?lerr // addr_ge0 // sqr_ge0.
 Qed.
 
+Lemma normM (x y : complexR) :
+  norm (x * y) = norm x * norm y.
+Proof.
+by rewrite /norm /= complex.ComplexField.normcM.
+Qed.
+
+Lemma norm_morph : {morph (norm : complexR -> R) : x y / x * y >-> x * y}.
+Proof. by move=> x y; rewrite normM. Qed.
+
+
 End Cstruct.
 
 (**** * Functions R -> complexR * ****)
@@ -520,18 +530,19 @@ apply: (continuity_pt_ext (mult_fct
 by apply: continuity_pt_mult => //; apply: continuity_pt_opp.  
 Qed. 
 
-Lemma Crcontinuity_pt_poly (P : {poly complexR}) x :
-  Crcontinuity_pt (fun y => P.[RtoC y]) x.
+Lemma Crcontinuity_pt_poly (P : {poly complexR}) (a : complexR) x :
+  Crcontinuity_pt (fun y => P.[y *: a]) x.
 Proof.
 elim/poly_ind: P => [|Q c ihQ].
   apply: (@Crcontinuity_pt_ext (fun y => RtoC 0)).
     by move=> u /=; rewrite horner0.
   by apply: Crcontinuity_pt_const.
-apply: (@Crcontinuity_pt_ext (fun y => (Q.[RtoC y] * (RtoC y)) + c)).
-  by move=> u /=; rewrite hornerMXaddC.
+apply: (@Crcontinuity_pt_ext (fun y => (Q.[y *: a] * (RtoC y * a)) + c)).
+  by move=> u /=; rewrite hornerMXaddC Cr_scalE.
 apply: Crcontinuity_pt_add; last by apply/Crcontinuity_pt_const.
 apply: Crcontinuity_pt_mul; first exact ihQ.
-by apply: Crcontinuity_pt_idR.
+apply: Crcontinuity_pt_mul; first by apply: Crcontinuity_pt_idR.
+by apply: Crcontinuity_pt_const.
 Qed.
 
 Lemma Crcontinuity_pt_exp (a : complexR) (x : R) :
@@ -969,44 +980,42 @@ move=> Hf; apply: is_Crderive_unique.
 by apply: is_CrderiveX; apply: Crderive_correct.
 Qed.
 
-Lemma ex_Crderive_poly (P : {poly complexR}) (x : R) :
-  ex_derive (fun y : R_NormedModule => P.[RtoC y] : Cr_R_NormedModule) x.
+Lemma ex_Crderive_poly (P : {poly complexR}) (a : complexR) (x : R) :
+  ex_derive (fun y : R_NormedModule => P.[y *: a] : Cr_R_NormedModule) x.
 Proof.
 apply: (@poly_ind _ (fun Q => ex_derive 
-  (fun y : R_NormedModule => Q.[RtoC y] : Cr_R_NormedModule) x)) => [|Q c IhQ].
+  (fun y : R_NormedModule => Q.[y *: a]) x)) => [|Q c IhQ].
   apply: (ex_derive_ext (fun y => 0 : Cr_R_NormedModule)).
     by move=> y; rewrite horner0.
   by apply: ex_derive_const.
 apply: (ex_derive_ext 
-   (fun y : R_NormedModule =>  Q.[RtoC y] * (RtoC y) + c : Cr_R_NormedModule)).
-  by move=> y; rewrite hornerMXaddC.
-apply: ex_CrderiveD.
-  apply: ex_CrderiveM => //.
-  by apply: ex_Crderive_idR.
-by apply: ex_derive_const.
+   (fun y : R_NormedModule =>  Q.[y *: a] * (RtoC y * a) + c : Cr_R_NormedModule)).
+  by move=> y; rewrite hornerMXaddC Cr_scalE.
+apply: ex_CrderiveD; last by apply: ex_derive_const.
+by apply/ex_CrderiveM => //; apply/ex_CrderiveM/ex_derive_const/ex_Crderive_idR.
 Qed.
 
-Lemma Crderive_poly (P : {poly complexR}) (x : R) :
-  Crderive (fun y => P.[RtoC y]) x = P^`().[RtoC x].
+Lemma Crderive_poly (P : {poly complexR}) a (x : R) :
+  Crderive (fun y => P.[y *: a]) x = a * P^`().[x *: a].
 Proof.
 apply: (@poly_ind _ (fun Q =>
- Crderive (fun y : R => Q.[RtoC y]) x = Q^`().[RtoC x]
+ Crderive (fun y : R => Q.[y *: a]) x = a * Q^`().[x *: a]
    )) => [|Q c IhQ].
   rewrite (@Crderive_ext _ (fun _ => 0)).
-    by rewrite (Crderive_const) deriv0 horner0.
+    by rewrite (Crderive_const) deriv0 horner0 mulr0.
   by move=> y; rewrite horner0.
-rewrite (@Crderive_ext _ (fun y =>  Q.[RtoC y] * (RtoC y) + c)).
-  rewrite (CrderiveD).
-      rewrite CrderiveM.  
-          rewrite IhQ Crderive_const Crderive_idR derivMXaddC.
-          by rewrite hornerD hornerMX addr0 mulr1 addrC.
-        by apply: ex_Crderive_poly.
-      by apply: ex_Crderive_idR.
-    apply: ex_CrderiveM.
-      by apply: ex_Crderive_poly.
-    by apply: ex_Crderive_idR.
-  by apply: ex_derive_const.
-by move=>y; rewrite hornerMXaddC.
+rewrite (@Crderive_ext _ (fun y =>  Q.[y *: a] * ((RtoC y) * a) + c)).
+  rewrite (CrderiveD) ?CrderiveM ?IhQ ?Crderive_const ?Crderive_idR; first last.
+  + by apply: ex_derive_const.
+  + apply/ex_CrderiveM/ex_CrderiveM/ex_derive_const/ex_Crderive_idR.
+    by apply/ex_Crderive_poly.
+  + by apply/ex_CrderiveM/ex_derive_const/ex_Crderive_idR.
+  + by apply/ex_Crderive_poly.
+  + by apply/ex_derive_const.
+  + by apply/ex_Crderive_idR.
+  rewrite derivMXaddC mul1r mulr0 !addr0 hornerD hornerMX -Cr_scalE.
+  by rewrite [_ * a]mulrC mulrDr addrC mulrA.
+by move=>y; rewrite hornerMXaddC -Cr_scalE.
 Qed.
 
 Lemma ex_Crderive_Cexp (a : complexR) (x : R) :

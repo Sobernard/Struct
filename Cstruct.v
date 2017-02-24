@@ -123,7 +123,7 @@ Canonical Re_R_linear := [linear of Re_R].
 Canonical Im_R_additive := [additive of Im_R].
 Canonical Im_R_linear := [linear of Im_R].
 
-Notation RtoC := (real_complex R).
+Notation RtoC := (real_complex R : R -> complexR).
 
 Ltac RtoC_simpl := 
   rewrite -?complexRe -?complexIm -?[`| _ |]/(((norm_R _)%:C)%C) -?[((_)%:C)%C]/(RtoC _) /=.
@@ -920,6 +920,27 @@ Proof.
 by rewrite -numq_eq0 mulf_eq0 invr_eq0 !intr_eq0 (negbTE (denq_neq0 x)) orbF.
 Qed.
 
+Lemma polyZ_algebraic (x : complexR) (p : {poly int}) :
+  p != 0 -> root (map_poly ZtoC p) x -> x is_algebraic.
+Proof.
+move=> p_neq0 rootpx; rewrite /algebraicOver.
+exists (map_poly intr p).
+  by rewrite map_poly_eq0_id0 // intr_eq0 lead_coef_eq0.
+have ZtoQtoC : QtoC \o intr =1 ZtoC by move=> y /=; rewrite ratr_int.
+by rewrite -map_poly_comp (eq_map_poly ZtoQtoC).
+Qed.
+
+Lemma poly_algebraic (x : complexR) (p : {poly complexR}) :
+  p != 0 -> root p x -> p \is a polyOver Cint -> x is_algebraic.
+Proof.
+move=> p_neq0 rootpx /floorCpP[q eq_p_q]; rewrite /algebraicOver.
+have ZtoQtoC : QtoC \o intr =1 ZtoC by move=> y /=; rewrite ratr_int.
+exists (map_poly intr q).
+  move: p_neq0; rewrite eq_p_q -(eq_map_poly ZtoQtoC) map_poly_comp.
+  by rewrite map_poly_eq0.
+by rewrite -map_poly_comp (eq_map_poly ZtoQtoC) -eq_p_q.
+Qed.
+
 Lemma poly_caract_int (x : complexR) : x is_algebraic ->
     {p : {poly int} | [/\ (zcontents p = 1),
       irreducible_poly p, separable_poly (map_poly ZtoC p)
@@ -1050,18 +1071,6 @@ Lemma polyMinZ_irr (x : complexR) (H : x is_algebraic) :
   irreducible_poly (polyMinZ H).
 Proof. by move: (svalP (poly_caract_int H)) => []. Qed.
 
-Lemma polyMinZ_dvdp (x : complexR) (H : x is_algebraic) (q : {poly int}) :
-    root (map_poly ZtoC q) x = ((polyMinZ H) %| q).
-Proof. by move: (svalP (poly_caract_int H)) => []. Qed.
-
-Lemma polyMin_dvdp (x : complexR) (H : x is_algebraic) (q : {poly complexR}):
-  q \is a polyOver Cint -> root q x = ((polyMin H) %| q).
-Proof.
-move/floorCpP => [r ->]; rewrite polyMinZ_dvdp -dvdp_rat_int /polyMin.
-rewrite -(dvdp_map (ratr_rmorphism complexR_numFieldType)) -!map_poly_comp /=.
-by congr ( _ %| _); apply: eq_map_poly => y /=; rewrite ratr_int.
-Qed.
-
 Lemma polyMinZ_root (x : complexR) (H : x is_algebraic) : 
   root (map_poly ZtoC (polyMinZ H)) x.
 Proof.
@@ -1072,6 +1081,20 @@ Qed.
 Lemma polyMin_root (x : complexR) (H : x is_algebraic) : 
   root (polyMin H) x.
 Proof. by rewrite polyMinZ_root. Qed.
+
+Lemma polyMinZ_dvdp (x : complexR) (H : x is_algebraic) (q : {poly int}) :
+    root (map_poly ZtoC q) x = ((polyMinZ H) %| q).
+Proof. by move: (svalP (poly_caract_int H)) => []. Qed.
+
+
+Lemma polyMin_dvdp (x : complexR) (H : x is_algebraic) (q : {poly complexR}):
+  q \is a polyOver Cint -> root q x = ((polyMin H) %| q).
+Proof.
+move/floorCpP => [r ->]; rewrite polyMinZ_dvdp -dvdp_rat_int /polyMin.
+rewrite -(dvdp_map (ratr_rmorphism complexR_numFieldType)) -!map_poly_comp /=.
+by congr ( _ %| _); apply: eq_map_poly => y /=; rewrite ratr_int.
+Qed.
+
 
 Lemma polyMinZ_lcoef_gt0 (x : complexR) (H : x is_algebraic) : 
   0 < lead_coef (polyMinZ H).
@@ -1086,6 +1109,23 @@ Lemma polyMin_lcoef_gt0 (x : complexR) (H : x is_algebraic) :
 Proof.
 by rewrite lead_coef_map_eq ?intr_eq0 ?ltr0z ?lt0r_neq0 // polyMinZ_lcoef_gt0.
 Qed.
+
+
+Lemma polyMinZ_separable (x : complexR) (H : x is_algebraic) :
+  separable_poly (map_poly ZtoC (polyMinZ H)).
+Proof. by move: (svalP (poly_caract_int H)) => []. Qed.
+
+Lemma polyMin_separable (x : complexR) (H : x is_algebraic) :
+  separable_poly (polyMin H).
+Proof. by rewrite polyMinZ_separable. Qed.
+
+Lemma polyMin_over (x : complexR) (H : x is_algebraic) :
+  polyMin H \is a polyOver Cint.
+Proof.
+by rewrite /polyMin; apply/polyOverP => i; rewrite coef_map Cint_int.
+Qed.
+
+
 
 (*
 Lemma polyMinZ_coef0_neq0 (x : complexR) (H : x is_algebraic) :
@@ -1105,19 +1145,6 @@ by rewrite coef_map intr_eq0 polyMinZ_coef0_neq0.
 Qed.
 *)
 
-Lemma polyMinZ_separable (x : complexR) (H : x is_algebraic) :
-  separable_poly (map_poly ZtoC (polyMinZ H)).
-Proof. by move: (svalP (poly_caract_int H)) => []. Qed.
-
-Lemma polyMin_separable (x : complexR) (H : x is_algebraic) :
-  separable_poly (polyMin H).
-Proof. by rewrite polyMinZ_separable. Qed.
-
-Lemma polyMin_over (x : complexR) (H : x is_algebraic) :
-  polyMin H \is a polyOver Cint.
-Proof.
-by rewrite /polyMin; apply/polyOverP => i; rewrite coef_map Cint_int.
-Qed.
 
 
 
