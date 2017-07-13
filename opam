@@ -1,0 +1,21 @@
+opam-version: "1.2"
+maintainer: "sophie.bernard@inria.fr"
+homepage: "https://github.com/Sobernard/Struct"
+bug-reports: "https://github.com/Sobernard/Struct/issues"
+license: "CeCILL-B"
+authors: ["Sophie Bernard"]
+build: [
+  ["coq_makefile -f _CoqProject > Makefile"]
+  [make "-j%{jobs}%"]
+  [make "install"]
+]
+remove: 
+  [make "clean"]
+depends: [
+  "coq-mathcomp-multinomials"	{= "dev"}
+  "coq-coquelicot"		{>= "3.0.0"}
+ ]
+tags: [
+  "keyword:archimedean field"
+  "keyword:complex"
+]
