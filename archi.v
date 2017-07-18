@@ -1,14 +1,14 @@
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import ssralg ssrnum.
 From mathcomp Require Import poly ssrint rat.
-From mathcomp Require Import algC complex.
+From mathcomp Require algC complex polydiv polyorder mxpoly.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Local Open Scope ring_scope.
-Import GRing.Theory Num.Theory.
+Import mxpoly complex polyorder polydiv algC GRing.Theory Num.Theory.
 
 Module Archi.
 
@@ -929,6 +929,161 @@ Proof. by case/CnatP=> n ->; apply: rmorph_nat. Qed.
 Lemma conj_Cint x : x \is a Cint -> x^* = x.
 Proof. by move/Creal_Cint/conj_Creal. Qed.
 
+End ArchiNumClosedFieldTheory.
+End Theory.
+
+Export Archi.ArchiNumDomain.Exports Archi.ArchiNumField.Exports.
+Export Archi.ArchiNumClosedField.Exports Archi.ArchiRealDomain.Exports.
+Export Archi.ArchiRealField.Exports Archi.ArchiRealClosedField.Exports.
+
+Import Theory.
+
+(* int is a archiRealDomain *)
+
+Module intArchimedean.
+Section intArchimedean.
+
+Fact archimedean_axiomz : Num.archimedean_axiom int_numDomainType.
+Proof. by move=> x; exists (absz x).+1; rewrite natz ltz_nat ltnSn. Qed.
+
+End intArchimedean.
+End intArchimedean.
+
+Canonical int_archiNumDomain := 
+  Eval hnf in ArchiNumDomainType int intArchimedean.archimedean_axiomz.
+Canonical int_archiRealDomain :=
+  Eval hnf in [archiRealDomainType of int].
+
+Section ZnatPred.
+
+Definition Znat := (@Cnat int_archiRealDomain).
+Fact Znat_key : pred_key Znat. by []. Qed.
+Canonical Znat_keyd := KeyedQualifier Znat_key.
+
+Lemma ZnatP (m : int) : reflect (exists n : nat, m = n) (m \is a Znat).
+Proof. 
+by apply: (iffP (CnatP m)) => [[n ->] | [n ->]]; exists n; rewrite natz.
+Qed.
+
+Lemma Znat_semiring_closed : semiring_closed Znat.
+Proof. exact: (Cnat_semiring int_archiRealDomain). Qed.
+Canonical Znat_addrPred := AddrPred Znat_semiring_closed.
+Canonical Znat_mulrPred := MulrPred Znat_semiring_closed.
+Canonical Znat_semiringPred := SemiringPred Znat_semiring_closed.
+
+Lemma Znat_def (m : int) : (m \is a Znat) = (0 <= m).
+Proof. by case: m => [m | //]; rewrite le0z_nat; apply/ZnatP; exists m. Qed.
+
+Lemma Znat_old (m : int) : (m \is a Znat) = (m \is a ssrint.Znat).
+Proof. by apply/ZnatP/ssrint.ZnatP. Qed.
+
+End ZnatPred.
+
+Canonical rat_archiNumDomain := 
+  Eval hnf in ArchiNumDomainType rat rat_archimedean.
+Canonical rat_archiRealDomain :=
+  Eval hnf in [archiRealDomainType of rat].
+Canonical rat_archiNumField :=
+  Eval hnf in [archiNumFieldType of rat].
+Canonical rat_archiRealField :=
+  Eval hnf in [archiRealFieldType of rat].
+
+
+Section QintPred.
+
+Definition Qint := (@Cint rat_archiRealField).
+Fact Qint_key : pred_key Qint. by []. Qed.
+Canonical Qint_keyed := KeyedQualifier Qint_key.
+
+Lemma QintP (x : rat) : reflect (exists z : int, x = z%:~R) (x \is a Qint).
+Proof. exact: CintP. Qed.
+
+Fact Qint_subring_closed : subring_closed Qint.
+Proof. exact: (Cint_subring rat_archiRealField). Qed.
+Canonical Qint_opprPred := OpprPred Qint_subring_closed.
+Canonical Qint_addrPred := AddrPred Qint_subring_closed.
+Canonical Qint_mulrPred := MulrPred Qint_subring_closed.
+Canonical Qint_zmodPred := ZmodPred Qint_subring_closed.
+Canonical Qint_semiringPred := SemiringPred Qint_subring_closed.
+Canonical Qint_smulrPred := SmulrPred Qint_subring_closed.
+Canonical Qint_subringPred := SubringPred Qint_subring_closed.
+
+Lemma Qint_def (x : rat) : (x \is a Qint) = (denq x == 1).
+Proof.
+apply/QintP/idP => [[y ->] | /eqP H]; first by rewrite denq_int.
+by exists (numq x); rewrite numqE H mulr1.
+Qed.
+
+Lemma Qint_old (x : rat) : (x \is a Qint) = (x \is a rat.Qint).
+Proof. by apply/QintP/rat.QintP. Qed.
+
+Lemma numqK : {in Qint, cancel (fun x => numq x) intr}.
+Proof. by move=> x; rewrite Qint_def numqE => /eqP ->; rewrite mulr1. Qed.
+
+End QintPred.
+
+Section QnatPred.
+
+Definition Qnat := (@Cnat rat_archiRealField).
+Fact Qnat_key : pred_key Qnat. by []. Qed.
+Canonical Qnat_keyed := KeyedQualifier Qnat_key.
+
+Lemma QnatP (x : rat) : reflect (exists n : nat, x = n%:R) (x \in Qnat).
+Proof. exact: CnatP. Qed.
+
+Lemma Qnat_def (x : rat) : (x \is a Qnat) = (x \is a Qint) && (0 <= x).
+Proof. exact: CnatEint. Qed.
+
+Lemma Qnat_old (x : rat) : (x \is a Qnat) = (x \is a rat.Qnat).
+Proof. by apply/QnatP/rat.QnatP. Qed.
+
+Fact Qnat_semiring_closed : semiring_closed Qnat.
+Proof. exact: (Cnat_semiring rat_archiRealField). Qed.
+Canonical Qnat_addrPred := AddrPred Qnat_semiring_closed.
+Canonical Qnat_mulrPred := MulrPred Qnat_semiring_closed.
+Canonical Qnat_semiringPred := SemiringPred Qnat_semiring_closed.
+
+End QnatPred.
+
+(* TODO
+Lemma Qint_dvdz (m d : int) : (d %| m)%Z -> ((m%:~R / d%:~R : rat) \is a Qint).
+
+Lemma Qnat_dvd (m d : nat) : (d %| m)%N → ((m%:R / d%:R : rat) \is a Qnat).
+
++ locate other occurences
+*)
+
+Module algCArchimedean.
+Section algCArchimedean.
+
+Fact algC_archiAxiom : Num.archimedean_axiom algCnumClosedField.
+Proof. 
+exact: (algebraics_fundamentals.rat_algebraic_archimedean algC_algebraic). 
+Qed.
+
+End algCArchimedean.
+End algCArchimedean.
+
+Canonical algCarchiNumDomain := 
+  ArchiNumDomainType algC algCArchimedean.algC_archiAxiom.
+Canonical algCarchiNumFieldType := [archiNumFieldType of algC].
+Canonical algCarchiNumClosedFieldType := [archiNumClosedFieldType of algC].
+
+Section algCPred.
+
+Lemma Cint_old (x : algC) : (x \is a Cint) = (x \in Algebraics.Exports.Cint).
+Proof. by apply/CintP/algC.CintP. Qed.
+
+Lemma Cnat_old (x : algC) : (x \is a Cnat) = (x \in Algebraics.Exports.Cnat).
+Proof. by apply/CnatP/algC.CnatP. Qed.
+
+End algCPred.
+
+Section NCFComplements.
+
+Variable R : numClosedFieldType.
+Implicit Types x y : R.
+
 (* complete order not compatible with all operations ! *)
 
 (* def of total order *)
@@ -1183,171 +1338,517 @@ Lemma maxcr x y : letc y (maxc x y).
 Proof. by rewrite maxcC maxcl. Qed.
 
 
-End ArchiNumClosedFieldTheory.
-End Theory.
 
-Export Archi.ArchiNumDomain.Exports Archi.ArchiNumField.Exports.
-Export Archi.ArchiNumClosedField.Exports Archi.ArchiRealDomain.Exports.
-Export Archi.ArchiRealField.Exports Archi.ArchiRealClosedField.Exports.
+(*       sequence of the roots of a polynomial     *)
+Definition sroots (P : {poly R}) := if P == 0 then [::] 
+                                      else(sval(closed_field_poly_normal P)).
 
-Import Theory.
-
-(* int is a archiRealDomain *)
-
-Module intArchimedean.
-Section intArchimedean.
-
-Fact archimedean_axiomz : Num.archimedean_axiom int_numDomainType.
-Proof. by move=> x; exists (absz x).+1; rewrite natz ltz_nat ltnSn. Qed.
-
-End intArchimedean.
-End intArchimedean.
-
-Canonical int_archiNumDomain := 
-  Eval hnf in ArchiNumDomainType int intArchimedean.archimedean_axiomz.
-Canonical int_archiRealDomain :=
-  Eval hnf in [archiRealDomainType of int].
-
-Section ZnatPred.
-
-Definition Znat := (@Cnat int_archiRealDomain).
-Fact Znat_key : pred_key Znat. by []. Qed.
-Canonical Znat_keyd := KeyedQualifier Znat_key.
-
-Lemma ZnatP (m : int) : reflect (exists n : nat, m = n) (m \is a Znat).
-Proof. 
-by apply: (iffP (CnatP m)) => [[n ->] | [n ->]]; exists n; rewrite natz.
-Qed.
-
-Lemma Znat_semiring_closed : semiring_closed Znat.
-Proof. exact: (Cnat_semiring int_archiRealDomain). Qed.
-Canonical Znat_addrPred := AddrPred Znat_semiring_closed.
-Canonical Znat_mulrPred := MulrPred Znat_semiring_closed.
-Canonical Znat_semiringPred := SemiringPred Znat_semiring_closed.
-
-Lemma Znat_def (m : int) : (m \is a Znat) = (0 <= m).
-Proof. by case: m => [m | //]; rewrite le0z_nat; apply/ZnatP; exists m. Qed.
-
-Lemma Znat_old (m : int) : (m \is a Znat) = (m \is a ssrint.Znat).
-Proof. by apply/ZnatP/ssrint.ZnatP. Qed.
-
-End ZnatPred.
-
-Canonical rat_archiNumDomain := 
-  Eval hnf in ArchiNumDomainType rat rat_archimedean.
-Canonical rat_archiRealDomain :=
-  Eval hnf in [archiRealDomainType of rat].
-Canonical rat_archiNumField :=
-  Eval hnf in [archiNumFieldType of rat].
-Canonical rat_archiRealField :=
-  Eval hnf in [archiRealFieldType of rat].
+Lemma sroots_0 : sroots 0 = [::].
+Proof. by rewrite /sroots eq_refl. Qed.
 
 
-Section QintPred.
-
-Definition Qint := (@Cint rat_archiRealField).
-Fact Qint_key : pred_key Qint. by []. Qed.
-Canonical Qint_keyed := KeyedQualifier Qint_key.
-
-Lemma QintP (x : rat) : reflect (exists z : int, x = z%:~R) (x \is a Qint).
-Proof. exact: CintP. Qed.
-
-Fact Qint_subring_closed : subring_closed Qint.
-Proof. exact: (Cint_subring rat_archiRealField). Qed.
-Canonical Qint_opprPred := OpprPred Qint_subring_closed.
-Canonical Qint_addrPred := AddrPred Qint_subring_closed.
-Canonical Qint_mulrPred := MulrPred Qint_subring_closed.
-Canonical Qint_zmodPred := ZmodPred Qint_subring_closed.
-Canonical Qint_semiringPred := SemiringPred Qint_subring_closed.
-Canonical Qint_smulrPred := SmulrPred Qint_subring_closed.
-Canonical Qint_subringPred := SubringPred Qint_subring_closed.
-
-Lemma Qint_def (x : rat) : (x \is a Qint) = (denq x == 1).
+Lemma sroots_poly P : P = lead_coef P *: \prod_(x <- (sroots P)) ('X - x%:P). 
 Proof.
-apply/QintP/idP => [[y ->] | /eqP H]; first by rewrite denq_int.
-by exists (numq x); rewrite numqE H mulr1.
+case: (boolP (P == 0)) => [/eqP -> | /negbTE P_neq0].
+  by rewrite lead_coef0 scale0r.
+by rewrite /sroots P_neq0 {1}(svalP(closed_field_poly_normal P)).
 Qed.
 
-Lemma Qint_old (x : rat) : (x \is a Qint) = (x \is a rat.Qint).
-Proof. by apply/QintP/rat.QintP. Qed.
-
-Lemma numqK : {in Qint, cancel (fun x => numq x) intr}.
-Proof. by move=> x; rewrite Qint_def numqE => /eqP ->; rewrite mulr1. Qed.
-
-End QintPred.
-
-Section QnatPred.
-
-Definition Qnat := (@Cnat rat_archiRealField).
-Fact Qnat_key : pred_key Qnat. by []. Qed.
-Canonical Qnat_keyed := KeyedQualifier Qnat_key.
-
-Lemma QnatP (x : rat) : reflect (exists n : nat, x = n%:R) (x \in Qnat).
-Proof. exact: CnatP. Qed.
-
-Lemma Qnat_def (x : rat) : (x \is a Qnat) = (x \is a Qint) && (0 <= x).
-Proof. exact: CnatEint. Qed.
-
-Lemma Qnat_old (x : rat) : (x \is a Qnat) = (x \is a rat.Qnat).
-Proof. by apply/QnatP/rat.QnatP. Qed.
-
-Fact Qnat_semiring_closed : semiring_closed Qnat.
-Proof. exact: (Cnat_semiring rat_archiRealField). Qed.
-Canonical Qnat_addrPred := AddrPred Qnat_semiring_closed.
-Canonical Qnat_mulrPred := MulrPred Qnat_semiring_closed.
-Canonical Qnat_semiringPred := SemiringPred Qnat_semiring_closed.
-
-End QnatPred.
-
-(* TODO
-Lemma Qint_dvdz (m d : int) : (d %| m)%Z -> ((m%:~R / d%:~R : rat) \is a Qint).
-
-Lemma Qnat_dvd (m d : nat) : (d %| m)%N → ((m%:R / d%:R : rat) \is a Qnat).
-
-+ locate other occurences
-*)
-
-Module algCArchimedean.
-Section algCArchimedean.
-
-Fact algC_archiAxiom : Num.archimedean_axiom algCnumClosedField.
-Proof. 
-exact: (algebraics_fundamentals.rat_algebraic_archimedean algC_algebraic). 
+Lemma srootsP P x : P != 0 -> reflect (x \in sroots P) (root P x).
+Proof.
+move=> P_neq0.
+have lead_coef_neq0 : lead_coef P != 0; first by rewrite lead_coef_eq0.
+move: P_neq0 (svalP(closed_field_poly_normal P)) => /negbTE P_neq0 H; rewrite H.
+rewrite (rootZ _ _ lead_coef_neq0) -H root_prod_XsubC /sroots P_neq0.
+by apply: (iffP idP).
 Qed.
 
-End algCArchimedean.
-End algCArchimedean.
+Lemma sroots_neq0 P : (P != 0) -> (0 \in (sroots P)) = (P`_0 == 0).
+Proof.
+move=> P_neq0; apply/idP/idP.
+  by move/(srootsP _ P_neq0)/rootP; rewrite horner_coef0 => ->.
+by move=> /eqP H; apply/(srootsP _ P_neq0)/rootP; rewrite horner_coef0.
+Qed.
 
-Canonical algCarchiNumDomain := 
-  ArchiNumDomainType algC algCArchimedean.algC_archiAxiom.
-Canonical algCarchiNumFieldType := [archiNumFieldType of algC].
-Canonical algCarchiNumClosedFieldType := [archiNumClosedFieldType of algC].
+Lemma sroots_mu P x : (count_mem x) (sroots P) = \mu_x P.
+Proof.
+case: (boolP (P == 0)) =>  [/eqP P_eq0 | P_neq0].
+  by rewrite P_eq0 sroots_0 mu0; apply/count_memPn; rewrite in_nil.
+case: (boolP (root P x)) => [x_root | x_not_root]; last first.
+  rewrite (muNroot x_not_root); apply/count_memPn.
+  by apply/negP; apply: (elimN (srootsP x P_neq0) x_not_root).
+have [sr_eq] : sroots P = sval(closed_field_poly_normal P).
+  by rewrite /sroots; move/negbTE: P_neq0 => P_neq0; rewrite ifF.
+move: (svalP (closed_field_poly_normal P)); rewrite -sr_eq.
+rewrite -prodr_undup_exp_count.
+have x_seqroot : x \in undup (sroots P); first by rewrite mem_undup; apply /srootsP.
+rewrite (bigD1_seq _ x_seqroot (undup_uniq (sroots P))) /= scalerAr mulrC => P_eq.
+apply/eqP; rewrite -(muP _ _ P_neq0); apply/andP; split.
+  by apply/dvdpP; exists (lead_coef P *: 
+    \prod_(i <- undup (sroots P) | i != x) ('X - i%:P) ^+ (count_mem i) (sroots P)).
+rewrite [X in _ %| X]P_eq exprS dvdp_mul2r; last first.
+  by rewrite expf_neq0 // polyXsubC_eq0.
+rewrite dvdp_XsubCl; move: P_neq0; rewrite -lead_coef_eq0 => lc_P_neq0.
+rewrite (rootZ _ _ lc_P_neq0) prodr_undup_exp_count.
+by rewrite -big_filter root_prod_XsubC mem_filter eq_refl.
+Qed.
 
-Section algCPred.
+Lemma sroots_size P : size (sroots P) = if (P == 0) then 0%N else (size P).-1.
+Proof.
+case: (boolP (P == 0)) => [/eqP ->| H].
+  by rewrite sroots_0.
+have Hp : (0 < size P)%N; first by rewrite size_poly_gt0.
+rewrite /sroots; move/negbTE : H => H; rewrite H; move/negbT: H => H.
+move: (svalP( closed_field_poly_normal P)); set r := sval _ => ->.
+move: H; rewrite -lead_coef_eq0 => H; rewrite (size_scale _ H).
+by rewrite size_prod_XsubC.
+Qed.
 
-Lemma Cint_old (x : algC) : (x \is a Cint) = (x \in Algebraics.Exports.Cint).
-Proof. by apply/CintP/algC.CintP. Qed.
+Lemma sroots_polyC c : sroots c%:P = [::].
+Proof.
+apply: size0nil; rewrite sroots_size.
+case: (boolP (c == 0)) => [/eqP -> | /negbTE c_neq0] /=.
+  by rewrite eq_refl.
+by rewrite polyC_eq0 c_neq0 size_polyC; move/negbT: c_neq0 => -> /=.
+Qed.
 
-Lemma Cnat_old (x : algC) : (x \is a Cnat) = (x \in Algebraics.Exports.Cnat).
-Proof. by apply/CnatP/algC.CnatP. Qed.
+Lemma srootsM P Q : P * Q != 0 ->
+  perm_eq (sroots (P * Q)) ((sroots P) ++ (sroots Q)).
+Proof.
+move => PQ_neq0; rewrite /perm_eq; apply/allP => x.
+rewrite !mem_cat => /orP [ H | /orP [H | H]] /=; 
+by rewrite count_cat !sroots_mu (mu_mul _ PQ_neq0).
+Qed.
 
-End algCPred.
+Lemma srootsZ P a : a != 0 -> 
+  perm_eq (sroots (a *: P)) (sroots P).
+Proof.
+case: (boolP (P == 0)) => [/eqP -> //= _ | P_neq0 a_neq0].
+  by rewrite scaler0.
+rewrite -mul_polyC.
+apply/(perm_eq_trans (srootsM _ )).
+  by apply/mulf_neq0 => //; rewrite polyC_eq0.
+by rewrite sroots_polyC.
+Qed.
+
+Lemma sroots_prod (I : Type) P (r : seq I) : all [pred i | P i != 0] r ->
+  perm_eq (sroots (\prod_(i <- r) P i)) (flatten [seq sroots (P i) | i <- r]).
+Proof.
+elim: r => [_ | j r Ihr].
+  rewrite big_nil /=; have -> : (sroots 1) = [::]; last by [].
+  have -> : (1 = (1%:P : poly_ringType R)); first by [].
+  by rewrite sroots_polyC.
+rewrite /= => /andP [Hj Hprod].
+rewrite big_cons; apply: (perm_eq_trans (srootsM _)).
+  apply:mulf_neq0; first by [].
+  by rewrite prodf_seq_neq0.
+by rewrite perm_cat2l; apply: Ihr.
+Qed.
+
+Lemma sroots_XsubC a : sroots ('X - a%:P) = [:: a].
+Proof.
+set s := sroots _.
+have size_s : size s = 1%N.
+  by rewrite sroots_size polyXsubC_eq0 size_XsubC.
+have := (root_XsubC a a); rewrite eq_refl.
+have : 'X - a%:P != 0 by rewrite polyXsubC_eq0.
+move/(srootsP _) => H; move/H; rewrite -/s.
+have -> : s = (head 0 s) :: (behead s).
+  apply: (@eq_from_nth _ 0) => /=.
+    by rewrite size_behead size_s.
+  by move=> i; rewrite size_s ltnS leqn0 => /eqP ->; rewrite [RHS]/= nth0.
+have -> : behead s = [::].
+  by apply/eqP; rewrite -size_eq0 size_behead size_s.
+by rewrite inE => /eqP ->.
+Qed.
+
+Lemma sroots_prod_XsubC rs :
+  perm_eq (sroots (\prod_(x <- rs) ('X - x%:P))) rs.
+Proof.
+apply/(perm_eq_trans (sroots_prod _) _).
+  by apply/allP=> x _ /=; rewrite polyXsubC_eq0.
+rewrite (eq_map sroots_XsubC).
+by elim: rs => //= x rs H /=; rewrite perm_cons.
+Qed.
+
+Lemma sroots_separable P :
+  separable.separable_poly P -> uniq (sroots P).
+Proof.
+case: (boolP (P == 0)) => [/eqP -> _ | P_neq0].
+  by rewrite /sroots eq_refl.
+rewrite [X in separable.separable_poly X]sroots_poly /separable.separable_poly.
+rewrite derivZ coprimep_scalel ?coprimep_scaler ?lead_coef_eq0 //.
+by rewrite -separable.separable_prod_XsubC.
+Qed.
+
+Lemma sroots_eqp P Q :
+  P %= Q -> perm_eq (sroots P) (sroots Q).
+Proof.
+case: (boolP  (P == 0)) => [/eqP -> | P_neq0 P_eqp_Q].
+  by rewrite eqp_sym eqp0 => /eqP ->.
+have Q_neq0 : Q != 0.
+  apply/negP => /eqP H; rewrite H eqp0 in P_eqp_Q.
+  by move: P_eqp_Q; apply/negP.
+move/eqpf_eq : P_eqp_Q => [l /= l_neq0 ->].
+by apply: srootsZ.
+Qed.
+
+End NCFComplements.
 
 Section Algr.
 
-Variable R : numClosedFieldType.
+Variable T : numClosedFieldType.
 
-Definition algr (x : algC) : R.
+(* Definition algr (x : algC) : R. *)
+(* Proof. *)
+(* pose P_aC := minCpoly x. *)
+(* have [P_rat [P_eq P_mon] P_div] := minCpolyP x. *)
+(* pose P_cR := (map_poly ratr P_rat : {poly R}). *)
+(* have [s_aC s_aC_eq] := (closed_field_poly_normal P_aC). *)
+(* have [s_cR s_cR_eq] := (closed_field_poly_normal P_cR). *)
+(* pose i := index x s_aC. *)
+(* exact: nth 0 s_cR i. *)
+(* Defined. *)
+
+Local Notation aCnum := Algebraics.Implementation.numClosedFieldType.
+
+Definition pQaC (P : {poly rat}) (n : nat) :=
+  nth 0 (sort (@letc aCnum) (sroots (map_poly ratr (P)))) n.
+
+Lemma pQaCE (P : {poly rat}) (n : nat) :
+  pQaC P n = nth 0 (sort (@letc aCnum) (sroots (map_poly ratr (P)))) n.
+Proof. by []. Qed.
+
+Definition pQcT (P : {poly rat}) (n : nat) :=
+  nth 0 (sort (@letc T) (sroots (map_poly ratr (P)))) n.
+
+Lemma pQcTE (P : {poly rat}) (n : nat) :
+  pQcT P n = nth 0 (sort (@letc T) (sroots (map_poly ratr (P)))) n.
+Proof. by []. Qed.
+
+Definition algr (x : algC) :=
+  let P_rat := sval(minCpolyP x) in 
+  let i := index x (sort (@letc aCnum) (sroots (map_poly ratr P_rat))) in
+  pQcT P_rat i.
+
+Lemma eq_sort_poly (R : numClosedFieldType) (P Q : {poly rat}) : 
+  P %= Q ->
+  sort (@letc R) (sroots (map_poly ratr P)) = 
+  sort (@letc R) (sroots (map_poly ratr Q)).
 Proof.
-pose P := minCpoly x.
+move HP : (map_poly _ _) => Pc; move HQ : (map_poly _ _) => Qc.
+rewrite -(eqp_map (@ratr_rmorphism R)) HP HQ => {P Q HP HQ} => eqp_PQ.
+apply/perm_sortP.
++ by apply: letc_total.
++ by apply: letc_trans.
++ by apply: letc_asym.
+by apply: sroots_eqp.
+Qed.
 
+Lemma pQaC_minCpoly (x : algC) :
+  x = pQaC (sval (minCpolyP x)) 
+           (index x (sort (@letc aCnum) (sroots (minCpoly x)))).
+Proof.
+have [[P_eq P_mon] P_div] := svalP (minCpolyP x).
+rewrite pQaCE -P_eq nth_index // mem_sort.
+by apply/srootsP/root_minCpoly; rewrite minCpoly_eq0.
+Qed.
+
+Lemma minCpolyP_irr (x : algC) : irreducible_poly (sval (minCpolyP x)).
+Proof.
+have [[P_eq P_mon] P_div] := svalP (minCpolyP x).
+rewrite /irreducible_poly; apply: pair.
+  have /negP/negP/root_size_gt1 := (minCpoly_eq0 x).
+  by move/(_ _ (root_minCpoly x)); rewrite [in X in size X]P_eq size_map_poly.
+move=> Q /negbTE size_Q Q_div; rewrite /eqp Q_div andTb -P_div.
+have /dvdpP[R R_eq] := Q_div.
+have := (root_minCpoly x); rewrite P_eq R_eq rmorphM /= rootM !P_div R_eq.
+move/orP => [| //]; rewrite -[X in (_ %| X)]mulr1 dvdp_mul2l ?dvdp1 ?size_Q //.
+by move/monic_neq0: P_mon; rewrite R_eq; apply: contraNneq => ->; rewrite mul0r.
+Qed.
+
+Lemma minCpoly_root_irr (x y : algC) : 
+  root (minCpoly x) y -> minCpoly x = minCpoly y.
+Proof.
+move=> y_root; apply/eqP; rewrite -eqp_monic ?minCpoly_monic //.
+have [[P_eq P_mon] P_div] := svalP (minCpolyP x).
+have [[Q_eq Q_mon] Q_div] := svalP (minCpolyP y).
+have := y_root; rewrite P_eq Q_eq Q_div => H.
+have := (snd (minCpolyP_irr x)) (sval (minCpolyP y)).
+have /negP/negP/root_size_gt1 := (minCpoly_eq0 y).
+move/(_ _ (root_minCpoly y)); rewrite [in X in size X]Q_eq size_map_poly.
+rewrite ltn_neqAle eq_sym => /andP[H1 _].
+by move/(_ H1 H) => {H1 H}; rewrite eqp_map eqp_sym.
+Qed.
+
+Lemma minCpoly_separable (x : algC) :
+  separable.separable_poly (minCpoly x).
+Proof.
+apply/Pdiv.ClosedField.root_coprimep => y /minCpoly_root_irr ->; rewrite -rootE.
+have [[Q_eq Q_mon] Q_div] := svalP (minCpolyP y); rewrite Q_eq deriv_map Q_div.
+rewrite gtNdvdp ?lt_size_deriv //; last by rewrite monic_neq0.
+have /negP/negP/root_size_gt1 := (minCpoly_eq0 y); move/(_ _ (root_minCpoly _)).
+rewrite [in X in size X]Q_eq size_map_poly -[1%N]add1n -ltn_subRL subn1.
+by rewrite -size_deriv lt0n size_poly_eq0.
+Qed.
+
+Lemma minCpoly_coprime (x y : algC) :
+  ~~ root (minCpoly x) y -> coprimep (minCpoly x) (minCpoly y).
+Proof.
+
+
+Search _ coprimep map_poly.
+
+
+Lemma algr_inj : injective algr.
+Proof.
+move=> x y.
+pose P_x := minCpoly x.
+case: (boolP (root P_x y)) => [y_root | ].
+  move/eqP; rewrite /algr.
+  have [[P_eq P_mon] P_div] := svalP (minCpolyP x).
+  have [[Q_eq Q_mon] Q_div] := svalP (minCpolyP y).
+  have eq_min := (minCpoly_root_irr y_root).
+  have /eqP := eq_min; rewrite -eqp_monic ?minCpoly_monic //.
+  rewrite [X in X %= _]P_eq  [X in _ %= X]Q_eq eqp_map.
+  move/eq_sort_poly => <-; have := eq_min.
+  rewrite [X in X = _ -> _]P_eq [X in _ = X -> _]Q_eq; move/map_poly_inj=> <-.
+  rewrite /pQcT; set s_cT := sort _ _; set s_aC := sort _ _.
+  have Hsize : (size s_aC = size s_cT).
+    by rewrite !size_sort !sroots_size !map_poly_eq0 !size_map_poly.
+  rewrite nth_uniq; first last.
+  + rewrite sort_uniq sroots_separable //.
+    have := (minCpoly_separable x). 
+    by rewrite [X in separable.separable_poly X -> _]P_eq !separable.separable_map.
+  + rewrite -Hsize index_mem.
+    by rewrite mem_sort -P_eq; apply/srootsP/y_root; rewrite minCpoly_eq0.
+  + rewrite -Hsize index_mem.
+    by rewrite mem_sort -P_eq; apply/srootsP/(root_minCpoly _); rewrite minCpoly_eq0.
+  move/eqP => {Hsize}.
+  have : x \in s_aC.
+    by rewrite mem_sort -P_eq; apply/srootsP/(root_minCpoly _); rewrite minCpoly_eq0.
+  move: s_aC; elim => [//= | z s ihs]; rewrite inE => /orP[/eqP eq_xz /= | ].
+    by rewrite eq_xz eq_refl; case: ifP => [/eqP -> //|_ //].
+  move/ihs => H /=; case: ifP => [/eqP -> // | _].
+    by case: ifP => [/eqP -> // | _ //].
+  by case: ifP => [_ // | _ /eqP]; rewrite eqSS; move/eqP/H.
+move=> H; rewrite /algr.  
+
+
+  have 
+
+
+
+
+Search _ find.
+  
+    
+
+sroots_separable:
+  forall (R : numClosedFieldType) (P : {poly R}), separable.separable_poly P -> uniq (sroots P)
+nth_uniq:
+  forall (T : eqType) (x0 : T) (s : seq T) (i j : nat),
+  (i < size s)%N -> (j < size s)%N -> uniq s -> (nth x0 s i == nth x0 s j) = (i == j)
+
+  rewrite -P_eq -Q_eq.
+
+
+Search _ (_ < _)%N (_ != _)%N in ssrnat.
+
+
+Search _ (_ %| _) in Pdiv.
+Pdiv.CommonIdomain.irredp_XsubCP:
+  forall (R : idomainType) (d p : {poly R}),
+  Pdiv.CommonIdomain.irreducible_poly p -> d %| p -> {d %= 1} + {d %= p}
+    have := (root_minCpoly x); rewrite P_eq.
+    have /dvdpP[R ->] := H; rewrite rmorphM /= rootM.
 
 Search _ minCpoly.
 
-Defined.
-Print algr.
+
+    rewrite P_eq Q_eq eqp_map /eqp -Q_div -P_eq y_root andbT.
+
+Search _ eqp map_poly.
+
+Locate dec_factor_theorem.
+
+Lemma algr_rat (x : rat) : algr (ratr x) = ratr x.
+Proof.
+rewrite /algr; set P_rat := sval (minCpolyP (ratr x)).
+have [[P_eq P_mon] P_div] := svalP (minCpolyP (ratr x)).
+have eq_P_rat : P_rat %= 'X - x%:P.  
+  have := (P_div P_rat); rewrite dvdpp fmorph_root /eqp -dvdp_XsubCl => -> /=.
+  by have := esym (P_div ('X - x%:P)); rewrite rmorph_root ?root_XsubC // andbT.
+rewrite !(eq_sort_poly _ eq_P_rat) !rmorphB /= !map_polyX !map_polyC /=. 
+by rewrite !sroots_XsubC /sort /= eq_refl.
+Qed.
+
+Lemma algr_algebraic (x : algC) : algebraicOver ratr (algr x).
+Proof.
+rewrite /algr; set P_rat := sval (minCpolyP x).
+have [[P_eq P_mon] P_div] := svalP (minCpolyP x).
+have P_rat_neq0 : P_rat != 0 by apply/monic_neq0/P_mon.
+exists P_rat; first exact: P_rat_neq0.
+apply/srootsP; first by rewrite map_poly_eq0.
+rewrite -(mem_sort (@letc T)) mem_nth //.
+have -> : size (sort (@letc T) (sroots (map_poly ratr P_rat))) =
+          size (sort (@letc aCnum) (sroots (map_poly ratr P_rat))).
+  by rewrite !size_sort !sroots_size !map_poly_eq0 !size_map_poly.
+set s := sort _ _; rewrite index_mem mem_sort.
+apply/srootsP; first by rewrite map_poly_eq0.
+by rewrite -P_eq root_minCpoly.
+Qed.
+
+Lemma Calg_subproof (z : T) : algebraicOver ratr z -> 
+                              {u : algC | algr (u) == z}.
+Proof.
+case/sig2_eqW=> p mon_p pz0; rewrite /algr.
+pose j := index z (sval (closed_field_poly_normal (map_poly ratr p))).
 
 
+Print closed_field_poly_normal.
+
+pose u := nth 0 (sort (letc 
+
+; exists u; have /eqmodP/eqP-> := reprK u.
+rewrite /rootQtoL -if_neg monic_neq0 //; apply: nth_index => /=.
+case: (closed_field_poly_normal _) => r /= Dp.
+by rewrite Dp (monicP _) ?(monic_map QtoL) // scale1r root_prod_XsubC in pz0.
+Print integralOver.
+
+
+Lemma algr_iC : algr 'i = 'i.
+Proof.
+rewrite /algr; set P_rat := sval (minCpolyP 'i).
+have [[P_eq P_mon] P_div] := svalP (minCpolyP 'i).
+have eq_P_rat : P_rat %= 'X^2 + 1.
+  have := esym (P_div ('X^2 + 1)); rewrite rootE !rmorphD [RHS]/= map_polyXn.
+  rewrite rmorph1 hornerD hornerXn hornerC sqrCi addNr eq_refl /eqp => -> /=.
+  have : ('X - 'i%:P %| minCpoly 'i) by rewrite dvdp_XsubCl root_minCpoly.
+  have : ('X - (-'i)%:P %| minCpoly 'i); rewrite dvdp_XsubCl -conjCi.
+
+    Search _ conjC.
+Locate "^*".  
+
+
+Search _ 'i.
+minCpoly_aut: forall (nu : {rmorphism algC -> algC}) (x : algC), minCpoly (nu x) = minCpoly x
+rewrite rmorph_root ?root_XsubC // andbT.
+  have := (P_div P_rat). rewrite dvdpp fmorph_root /eqp -dvdp_XsubCl => -> /=.
+  by have := esym (P_div ('X - x%:P)); rewrite rmorph_root ?root_XsubC // andbT.
+rewrite !(eq_sort_poly _ eq_P_rat) !rmorphB /= !map_polyX !map_polyC /=. 
+by rewrite !sroots_XsubC /sort /= eq_refl.
+
+
+
+
+Search _ "min" "Poly".
+
+
+
+
+Lemma algr_ratC (x y : rat) : 
+  algr (ratr x + 'i * ratr y) = ratr x + 'i * ratr y.
+Proof.
+rewrite /algr; set P_rat := sval (minCpolyP (ratr x + 'i * ratr y)).
+have [[P_eq P_mon] P_div] := svalP (minCpolyP (ratr x + 'i * ratr y)).
+have eq_P_rat : P_rat %= ('X^2 - (x + x) *: 'X + (x ^+ 2 + y ^+ 2)%:P).  
+  have := (P_div P_rat). rewrite dvdpp /eqp -dvdp_XsubCl. 
+
+Print mxpoly.algebraicOver.
+
+
+=> -> /=.
+  by have := esym (P_div ('X - x%:P)); rewrite rmorph_root ?root_XsubC // andbT.
+rewrite !(eq_sort_poly _ eq_P_rat) !rmorphB /= !map_polyX !map_polyC /=. 
+by rewrite !sroots_XsubC /sort /= eq_refl.
+
+Lemma poly_irr_C (P Q : {poly rat}) (n m : nat) :
+  let s_PaC := sort (@letc aCnum) (sroots (map_poly ratr P)) in
+  let s_QaC := sort (@letc aCnum) (sroots (map_poly ratr Q)) in
+  let s_PcT := sort (@letc T) (sroots (map_poly ratr P)) in
+  let s_QcT := sort (@letc T) (sroots (map_poly ratr Q)) in
+  nth 0 s_PaC n = nth 0 s_QaC m -> nth 0 s_PcT n = nth 0 s_QcT m.
+Proof.
+
+Search _ separable.separable_poly.
+
+Search "big" "ind".
+
+Search _ "morph".
+About polyMin.
+
+Lemma algr_can (x : T) 
+
+
+
+Lemma algr_polyM (x : algC) (P : {poly rat}) :
+  ~~ root (map_poly ratr P) x -> 
+  let Q_rat := sval(minCpolyP x) in algr x =
+  nth 0 (sort (@letc T) (sroots (map_poly ratr (P * Q_rat))))
+      (index x (sort (@letc aCnum) (sroots (map_poly ratr (P * Q_rat))))).
+Proof.
+rewrite /algr; set Q_rat := sval(minCpolyP x).
+Search _ index.
+Search _ subseq.
+Print subseq.
+Search _ mask.
+
+
+
+
+index_cat:
+  forall (T : eqType) (x : T) (s1 s2 : seq T),
+  index x (s1 ++ s2) = (if x \in s1 then index x s1 else (size s1 + index x s2)%N)
+
+
+
+Lemma algr_poly (x : algC) (P : {poly rat}) :
+  root (map_poly ratr P) x -> 
+  algr x = nth 0 (sort (@letc T) (sroots (map_poly ratr P))) 
+               (index x (sort (@letc aCnum) (sroots (map_poly ratr P)))).
+Proof.
+move=> P_root; rewrite /algr.
+set R := sval (minCpolyP x).
+have := svalP (minCpolyP x); rewrite -/R; move => [[R_eq R_mon] R_div].
+have := P_root; rewrite R_div => /dvdpP [Q poly_eq].
+have /(congr1 (map_poly (@ratr aCnum))) := poly_eq.
+have /(congr1 (map_poly (@ratr T))) := poly_eq; rewrite !rmorphM /=.
+set P_cT := map_poly _ _; set Q_cT := map_poly _ _; set R_cT := map_poly _ _.
+set P_aC := map_poly _ _; set Q_aC := map_poly _ _; set R_aC := map_poly _ _.
+About srootsM.
+move/(srootsM _).
+
+
+
+Search _ index.
+
+
+
+
+Lemma algr_is_rmorphism : rmorphism algr.
+Proof.
+split.
+
+
+
+Print rmorphism.
+Search _ (rmorphism _).
+
+
+
+
+closed_field_poly_normal:
+  forall (F : closedFieldType) (p : {poly F}),
+  {r : seq F | p = lead_coef p *: \prod_(z <- r) ('X - z%:P)}
+max_poly_roots:
+  forall (R : idomainType) (p : {poly R}) (rs : seq R),
+  p != 0 -> all (root p) rs -> uniq rs -> (size rs < size p)%N
+minCpolyP:
+  forall x : algC,
+  {p : {poly rat_Ring} | minCpoly x = map_poly ratr p /\ p \is monic &
+  forall q : {poly rat_Ring}, root (map_poly ratr q) x = polydiv.Pdiv.Field.dvdp p q}
+root_minCpoly: forall x : algC, root (minCpoly x) x
 End Algr.
 
 Module complexArchimedean.
