@@ -1495,6 +1495,8 @@ Qed.
 
 End NCFComplements.
 
+Arguments letc [R].
+
 Section Algr.
 
 Variable T : numClosedFieldType.
@@ -1595,19 +1597,18 @@ Qed.
 Lemma minCpoly_coprime (x y : algC) :
   ~~ root (minCpoly x) y -> coprimep (minCpoly x) (minCpoly y).
 Proof.
-
-
-Search _ coprimep map_poly.
-
+move=> /negP y_nroot; apply/Pdiv.ClosedField.coprimepP => z.
+move /minCpoly_root_irr => eq_xz; rewrite -rootE.
+apply/negP => /minCpoly_root_irr; rewrite -eq_xz.
+by move=> eq_yx; apply: y_nroot; rewrite -eq_yx root_minCpoly.
+Qed.
 
 Lemma algr_inj : injective algr.
 Proof.
-move=> x y.
-pose P_x := minCpoly x.
-case: (boolP (root P_x y)) => [y_root | ].
-  move/eqP; rewrite /algr.
-  have [[P_eq P_mon] P_div] := svalP (minCpolyP x).
-  have [[Q_eq Q_mon] Q_div] := svalP (minCpolyP y).
+move=> x y; rewrite /algr /pQcT; pose P_x := minCpoly x.
+have [[P_eq P_mon] P_div] := svalP (minCpolyP x).
+have [[Q_eq Q_mon] Q_div] := svalP (minCpolyP y).
+case: (boolP (root P_x y)) => [y_root /eqP | /minCpoly_coprime H eq_xy].
   have eq_min := (minCpoly_root_irr y_root).
   have /eqP := eq_min; rewrite -eqp_monic ?minCpoly_monic //.
   rewrite [X in X %= _]P_eq  [X in _ %= X]Q_eq eqp_map.
@@ -1632,49 +1633,27 @@ case: (boolP (root P_x y)) => [y_root | ].
   move/ihs => H /=; case: ifP => [/eqP -> // | _].
     by case: ifP => [/eqP -> // | _ //].
   by case: ifP => [_ // | _ /eqP]; rewrite eqSS; move/eqP/H.
-move=> H; rewrite /algr.  
-
-
-  have 
-
-
-
-
-Search _ find.
-  
-    
-
-sroots_separable:
-  forall (R : numClosedFieldType) (P : {poly R}), separable.separable_poly P -> uniq (sroots P)
-nth_uniq:
-  forall (T : eqType) (x0 : T) (s : seq T) (i j : nat),
-  (i < size s)%N -> (j < size s)%N -> uniq s -> (nth x0 s i == nth x0 s j) = (i == j)
-
-  rewrite -P_eq -Q_eq.
-
-
-Search _ (_ < _)%N (_ != _)%N in ssrnat.
-
-
-Search _ (_ %| _) in Pdiv.
-Pdiv.CommonIdomain.irredp_XsubCP:
-  forall (R : idomainType) (d p : {poly R}),
-  Pdiv.CommonIdomain.irreducible_poly p -> d %| p -> {d %= 1} + {d %= p}
-    have := (root_minCpoly x); rewrite P_eq.
-    have /dvdpP[R ->] := H; rewrite rmorphM /= rootM.
-
-Search _ minCpoly.
-
-
-    rewrite P_eq Q_eq eqp_map /eqp -Q_div -P_eq y_root andbT.
-
-Search _ eqp map_poly.
-
-Locate dec_factor_theorem.
+pose P_cT := fun z => (map_poly (@ratr T) (sval (minCpolyP z))).
+pose P_aC := fun z => (map_poly (@ratr aCnum) (sval (minCpolyP z))).
+pose s_cT := fun z => sort (@letc T) (sroots (P_cT z)).
+pose s_aC := fun z => sort (@letc aCnum) (sroots (P_aC z)).
+have Hh z : root (P_cT z) (nth 0 (s_cT z) (index z (s_aC z))).
+  have [[R_eq R_mon] R_div] := svalP (minCpolyP z).
+  have : z \in (s_aC z); last rewrite -index_mem.
+    rewrite mem_sort; apply/srootsP; first by rewrite map_poly_eq0 monic_neq0.
+    by rewrite /P_aC -R_eq root_minCpoly.
+  have -> : size (s_aC z) = size (s_cT z).
+    by rewrite !size_sort !sroots_size !map_poly_eq0 !size_map_poly.
+  move/(mem_nth 0); rewrite mem_sort.
+  by move/srootsP; apply; rewrite map_poly_eq0 (monic_neq0 R_mon).
+have : coprimep (P_cT x) (P_cT y).
+  by move: H; rewrite [in coprimep _]P_eq [in coprimep _ _]Q_eq !coprimep_map.
+by move/Pdiv.ClosedField.coprimepP; move/(_ _ (Hh x)); rewrite -rootE eq_xy Hh.
+Qed.
 
 Lemma algr_rat (x : rat) : algr (ratr x) = ratr x.
 Proof.
-rewrite /algr; set P_rat := sval (minCpolyP (ratr x)).
+rewrite /algr /pQcT; set P_rat := sval (minCpolyP (ratr x)).
 have [[P_eq P_mon] P_div] := svalP (minCpolyP (ratr x)).
 have eq_P_rat : P_rat %= 'X - x%:P.  
   have := (P_div P_rat); rewrite dvdpp fmorph_root /eqp -dvdp_XsubCl => -> /=.
@@ -1699,23 +1678,151 @@ apply/srootsP; first by rewrite map_poly_eq0.
 by rewrite -P_eq root_minCpoly.
 Qed.
 
-Lemma Calg_subproof (z : T) : algebraicOver ratr z -> 
-                              {u : algC | algr (u) == z}.
+(* Lemma algr_irr (x : algC) (P : {poly rat}) : *)
+(*   root (map_poly ratr P) x -> *)
+(*   algr x = pQcT P (index x (sort (@letc aCnum) (sroots (map_poly ratr P)))). *)
+(* Proof.   *)
+(* rewrite /algr /pQcT. *)
+
+Lemma ralg_subproof (z : T) : algebraicOver ratr z -> 
+                              {u : algC | algr u = z}.
 Proof.
-case/sig2_eqW=> p mon_p pz0; rewrite /algr.
-pose j := index z (sval (closed_field_poly_normal (map_poly ratr p))).
+case/sig2_eqW=> p p_mon z_root; rewrite /algr.
+pose P_cT := map_poly (@ratr T) p; pose s_cT := sort (@letc T) (sroots P_cT).
+pose P_aC := map_poly (@ratr aCnum) p.
+pose s_aC := sort (@letc aCnum) (sroots P_aC).
+have : root (map_poly ratr (\prod_(x <- s_aC) (sval (minCpolyP x)))) z.
+  have P_aC_eqp : P_aC %= \prod_(x <- s_aC) ('X - x%:P).
+    apply/eqpf_eq; exists (lead_coef P_aC); last rewrite [LHS]sroots_poly.
+      by rewrite lead_coef_eq0 map_poly_eq0.
+    by congr (_ *: _); apply/esym/eq_big_perm/perm_eqlP/perm_sort.
+  have /dvdpP[Q ->] : (p %| (\prod_(x <- s_aC) (sval (minCpolyP x)))).  
+    rewrite -(dvdp_map (@ratr_rmorphism aCnum)) rmorph_prod (eqp_dvdl _ P_aC_eqp).
+    apply/(big_ind2 (fun x y => (x %| y)) (dvdpp _)) => [a1 a2 a3 a4| x _].
+      by apply/dvdp_mul.
+    have [[P_eq _] _] := svalP (minCpolyP x).
+    by rewrite /= -P_eq dvdp_XsubCl root_minCpoly.
+  by rewrite rmorphM rootM z_root orbT.
+rewrite (@big_morph _ _ (fun P => root (map_poly ratr P) z) false orb); first last.
++ by apply/negP/negP; rewrite rmorph1 root1.
++ by move=> x y; rewrite rmorphM rootM.
+rewrite big_has => Hhas; have := Hhas; rewrite has_find.
+set f := (fun _ => _); set j := find _ _ => j_size; pose x := nth 0 s_aC j.
+have [[Q_eq Q_mon] Q_div] := svalP (minCpolyP x).
+have : f x; last rewrite /f => z_rootQ; first by rewrite /x /j nth_find.
+pose i := index z (sort (@letc T) (sroots (map_poly ratr (sval (minCpolyP x))))).
+pose y := nth 0 (sort (@letc aCnum) (sroots (map_poly ratr (sval (minCpolyP x))))) i.
+exists y; rewrite /pQcT /y.
+set t_cT := sort (@letc aCnum) _; set t_aC := sort _ _.
+set Pi := map_poly _ _.
+have Hsize : size (sort (@letc aCnum) (sroots (map_poly ratr (sval (minCpolyP x)))))
+          = size (sort (@letc T) (sroots (map_poly ratr (sval (minCpolyP x))))).
+  by rewrite !size_sort !sroots_size !map_poly_eq0 !size_map_poly.
+have : Pi = map_poly ratr (sval (minCpolyP x)).
+  have [[P_eq P_mon] P_div] := svalP (minCpolyP x).
+  have [[Pi_eq Pi_mon] Pi_div] := svalP (minCpolyP (t_cT`_i)).
+  rewrite -P_eq /Pi -Pi_eq.
+  apply/esym/minCpoly_root_irr/srootsP; first by rewrite minCpoly_eq0.
+  rewrite P_eq /t_cT -(mem_sort (@letc aCnum)) mem_nth // /i.
+  rewrite Hsize index_mem mem_sort.
+  by apply/srootsP/z_rootQ; rewrite map_poly_eq0 monic_neq0.
+rewrite /Pi => /map_poly_inj => H_eq; rewrite H_eq /i -/t_cT -H_eq -/t_aC.
+have z_in : z \in t_aC.
+  rewrite /t_aC H_eq mem_sort.
+  by apply/srootsP/z_rootQ; rewrite map_poly_eq0 monic_neq0.
+rewrite !index_uniq ?nth_index ?z_in //.
++ by rewrite Hsize -H_eq -/t_aC index_mem z_in.
+by rewrite sort_uniq sroots_separable // -Q_eq minCpoly_separable.
+Qed.
+
+Definition ralg x Ax := sval (@ralg_subproof x Ax).
+
+Lemma ralgK x Ax : algr (@ralg x Ax) = x.
+Proof. exact: (svalP (ralg_subproof Ax)). Qed.
+
+Lemma algrK x Ax : @ralg (algr x) Ax = x.
+Proof. by apply/algr_inj; rewrite ralgK. Qed.
+
+Lemma algr_eq x y Ay : (algr x == y) = (x == @ralg y Ay).
+Proof.
+apply/idP/idP => [/eqP H | /eqP ->]; last by rewrite ralgK.
+by apply/eqP/algr_inj; rewrite H ralgK.
+Qed.
+
+Lemma ralg_inj x y Ax Ay : (@ralg x Ax) = (@ralg y Ay) -> x = y.
+Proof. by move/eqP; rewrite -algr_eq ralgK => /eqP. Qed.
+
+(* Lemma ralgD (x y : T) (Ax : algebraicOver ratr x) (Ay : algebraicOver ratr y) : *)
+(*   ralg Ax + ralg Ay = ralg (algebraic_add Ax Ay). *)
+(* Proof. *)
+
+Lemma algr_conj (x : algC) : algr (x ^*) = (algr x)^*.
+Proof.
+pose P := sval (minCpolyP x).
+have : root (map_poly ratr P) (x^*).  
+
+Search _ "conj".
+Search _ map_poly root.
+About mathcomp.field.algC.Algebraics.Implementation.conj.
+Locate algebraic.
+Locate conjC.
+Locate algC.
+About mathcomp.field.algC.Algebraics.Exports.conjC.
+Search _ "conj" in algC.
+
+fmorph_root:
+  forall (F : fieldType) (R : ringType) (f : {rmorphism F -> R}) (p : {poly F}) (x : F),
+  root (map_poly f p) (f x) = root p x
+
+Lemma algrD (x y : algC) : algr (x + y) = algr x + algr y.
+Proof.
+have /eqP := (eq_refl (x + y)).
+rewrite -[x + y in LHS]algrK; first by apply/algr_algebraic.
+move=> Hxy_alg HAxy.
+have /eqP := (eq_refl (x + y)).
+rewrite -[x in LHS]algrK; first by apply/algr_algebraic.
+move=> Hx_alg; rewrite -[y in LHS]algrK; first by apply/algr_algebraic.
+move=> Hy_alg; rewrite -HAxy => <- /=.
+
+set u := ralg (algebraic_add (algr_algebraic x) (algr_algebraic y)).
 
 
-Print closed_field_poly_normal.
+Print algebraic_add.
+Search _ "min" "Poly".
 
-pose u := nth 0 (sort (letc 
 
-; exists u; have /eqmodP/eqP-> := reprK u.
-rewrite /rootQtoL -if_neg monic_neq0 //; apply: nth_index => /=.
-case: (closed_field_poly_normal _) => r /= Dp.
-by rewrite Dp (monicP _) ?(monic_map QtoL) // scale1r root_prod_XsubC in pz0.
-Print integralOver.
+have <- : algr u = algr x + algr y by rewrite /u ralgK.
+set v := ralg (algr_algebraic (x + y)).
+have <- : algr v = algr (x + y) by rewrite /v ralgK.
+move/ralg_inj.
+have H2 : algr u = algr (x + y).
+  
+Print algebraic_add.
 
+rewrite -algrK.
+
+rewrite -H1 /u.
+apply/esym/eqP.
+rewrite algr_eq; first by apply: algr_algebraic.
+move => H; rewrite !algrK.
+Set Printing All.
+Search _ injective "in".
+
+apply/eqP/algr_inj.
+
+
+have H1 : u = x + y.
+  apply/algr_inj; rewrite /u.
+About ralgK.
+rewrite !algrK /u ralgK.
+
+
+rewrite -[x + y]algrK -[x in RHS]algrK -[y in RHS]algrK.
+set ax := algr x; set ay := algr y.
+
+set u := ralg (algebraic_add (algr_algebraic x) (algr_algebraic y)).
+have -> : x + y = u.
+  apply/algr_inj; rewrite /u.
 
 Lemma algr_iC : algr 'i = 'i.
 Proof.
