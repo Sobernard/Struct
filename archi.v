@@ -1752,6 +1752,61 @@ Qed.
 Lemma ralg_inj x y Ax Ay : (@ralg x Ax) = (@ralg y Ay) -> x = y.
 Proof. by move/eqP; rewrite -algr_eq ralgK => /eqP. Qed.
 
+Lemma algr_ler x y : 
+  root (minCpoly x) y -> (letc x y) = (letc (algr x) (algr y)).
+Proof.
+case: (boolP (x == y)) => [/eqP -> _ | xy_neq]; first by rewrite !letcc.
+move/minCpoly_root_irr => eq_min; rewrite /algr /pQcT.
+have [[P_eq _] _] := svalP (minCpolyP x).
+have [[Q_eq _] _] := svalP (minCpolyP y).
+move: eq_min; rewrite {1}P_eq {1}Q_eq => /map_poly_inj H; rewrite -H.
+set s1 := sort _ _; set s2 := sort _ _.
+have Hi : x \in s2; first rewrite mem_sort.
+  by apply/srootsP; rewrite -P_eq ?minCpoly_eq0 ?root_minCpoly.
+have Hj : y \in s2; first rewrite mem_sort H.
+  by apply/srootsP; rewrite -Q_eq ?minCpoly_eq0 ?root_minCpoly.
+have/(nth_index 0) {1}<- := Hi; have/(nth_index 0) {1}<- := Hj.
+have s1_sorted : sorted (@letc T) s1 by apply/sort_sorted/letc_total.
+have s2_sorted : sorted (@letc aCnum) s2 by apply/sort_sorted/letc_total.
+have Hsize : size s1 = size s2.
+  by rewrite !size_sort !sroots_size !map_poly_eq0 !size_map_poly.
+have uniq_s1 : uniq s1.
+  rewrite sort_uniq sroots_separable //.
+  by have := (minCpoly_separable x); rewrite {1}P_eq !separable.separable_map.
+have uniq_s2 : uniq s2.
+  by rewrite sort_uniq sroots_separable // -P_eq minCpoly_separable.
+move: Hi Hj; rewrite -!index_mem. 
+move: (index x s2) => i; move: (index y s2) => j {P_eq Q_eq H} Hi Hj.
+case: (boolP (i == j)) => [/eqP -> | H]; first by rewrite !letcc.
+wlog Hh : i j Hi Hj H / (i < j)%N.
+  case: (ltngtP i j) => [Hc | Hc | Hc]; last by move: H; rewrite Hc eq_refl.
+  + by apply.
+  move/(_ j i Hj Hi); rewrite eq_sym; move/(_ H Hc).
+  rewrite letcNgt letcNgt !letc_eqVlt !nth_uniq ?Hsize // (negbTE H) !orFb.
+  by move/(negb_inj).
+move Hk : (j - i)%N => k.
+have Hsizek : (k < size (drop i s2))%N.
+  rewrite size_drop -Hk ltn_sub2r //.
+have drop_subseq s n : subseq (drop n s) s.
+  by rewrite -[X in subseq _ X](cat_take_drop n) suffix_subseq.
+have := (subseq_sorted (@letc_trans aCnum) (drop_subseq _ _ i) s2_sorted).
+have := (subseq_sorted (@letc_trans T) (drop_subseq _ _ i) s1_sorted).
+have := Hi; rewrite -Hsize => /(drop_nth 0) ->; rewrite (drop_nth 0 Hi) /sorted.
+have /prednK /= Hk1 : (k > 0)%N by rewrite -Hk subn_gt0.
+have in1 : s1`_j \in drop i.+1 s1.
+  have /eqP -> : (j == i.+1 + k.-1)%N by rewrite -Hk -subnS subnKC.
+  rewrite -nth_drop mem_nth // size_drop subnS -[(_ - _).-1]subn1 ltn_subRL.
+  by rewrite add1n Hk1 ltn_subRL -Hk subnKC ?Hsize //; apply: ltnW.
+move/(order_path_min (@letc_trans T))/allP/(_ _ in1) => ->.
+have in2 : s2`_j \in drop i.+1 s2.
+  have /eqP -> : (j == i.+1 + k.-1)%N by rewrite -Hk -subnS subnKC.
+  rewrite -nth_drop mem_nth // size_drop subnS -[(_ - _).-1]subn1 ltn_subRL.
+  by rewrite add1n Hk1 ltn_subRL -Hk subnKC //; apply: ltnW.
+by move/(order_path_min (@letc_trans aCnum))/allP/(_ _ in2) => ->.
+Qed.
+
+    
+
 (* Lemma ralgD (x y : T) (Ax : algebraicOver ratr x) (Ay : algebraicOver ratr y) : *)
 (*   ralg Ax + ralg Ay = ralg (algebraic_add Ax Ay). *)
 (* Proof. *)
