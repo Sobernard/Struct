@@ -1516,6 +1516,10 @@ Variable T : numClosedFieldType.
 
 Local Notation aCnum := Algebraics.Implementation.numClosedFieldType.
 
+About closed_field_poly_normal.
+Print closed_field_poly_normal.
+
+
 Definition pQaC (P : {poly rat}) (n : nat) :=
   nth 0 (sort (@letc aCnum) (sroots (map_poly ratr (P)))) n.
 
