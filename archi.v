@@ -1,8 +1,10 @@
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import ssralg ssrnum.
 From mathcomp Require Import poly ssrint rat.
-From mathcomp Require Import complex mxpoly fieldext polyorder polydiv algC.
-From mathcomp Require Import matrix vector falgebra countalg.
+From mathcomp Require Import generic_quotient.
+From mathcomp Require Import realalg algC polyorder polydiv complex.
+(* From mathcomp Require Import complex mxpoly fieldext polyorder polydiv algC. *)
+(* From mathcomp Require Import matrix vector falgebra countalg. *)
 
 
 Set Implicit Arguments.
@@ -1499,368 +1501,7 @@ End NCFComplements.
 
 Arguments letc [R].
 
-Section Algr.
 
-Variable T : numClosedFieldType.
-
-Local Notation aCnum := Algebraics.Implementation.numClosedFieldType.
-
-Lemma minCpolyP_irr (x : algC) : irreducible_poly (sval (minCpolyP x)).
-Proof.
-have [[P_eq P_mon] P_div] := svalP (minCpolyP x).
-rewrite /irreducible_poly; apply: pair.
-  have /negP/negP/root_size_gt1 := (minCpoly_eq0 x).
-  by move/(_ _ (root_minCpoly x)); rewrite [in X in size X]P_eq size_map_poly.
-move=> Q /negbTE size_Q Q_div; rewrite /eqp Q_div andTb -P_div.
-have /dvdpP[R R_eq] := Q_div.
-have := (root_minCpoly x); rewrite P_eq R_eq rmorphM /= rootM !P_div R_eq.
-move/orP => [| //]; rewrite -[X in (_ %| X)]mulr1 dvdp_mul2l ?dvdp1 ?size_Q //.
-by move/monic_neq0: P_mon; rewrite R_eq; apply: contraNneq => ->; rewrite mul0r.
-Qed.
-
-Lemma minCpoly_root_irr (x y : algC) : 
-  root (minCpoly x) y -> minCpoly x = minCpoly y.
-Proof.
-move=> y_root; apply/eqP; rewrite -eqp_monic ?minCpoly_monic //.
-have [[P_eq P_mon] P_div] := svalP (minCpolyP x).
-have [[Q_eq Q_mon] Q_div] := svalP (minCpolyP y).
-have := y_root; rewrite P_eq Q_eq Q_div => H.
-have := (snd (minCpolyP_irr x)) (sval (minCpolyP y)).
-have /negP/negP/root_size_gt1 := (minCpoly_eq0 y).
-move/(_ _ (root_minCpoly y)); rewrite [in X in size X]Q_eq size_map_poly.
-rewrite ltn_neqAle eq_sym => /andP[H1 _].
-by move/(_ H1 H) => {H1 H}; rewrite eqp_map eqp_sym.
-Qed.
-
-Lemma minCpoly_separable (x : algC) :
-  separable.separable_poly (minCpoly x).
-Proof.
-apply/Pdiv.ClosedField.root_coprimep => y /minCpoly_root_irr ->; rewrite -rootE.
-have [[Q_eq Q_mon] Q_div] := svalP (minCpolyP y); rewrite Q_eq deriv_map Q_div.
-rewrite gtNdvdp ?lt_size_deriv //; last by rewrite monic_neq0.
-have /negP/negP/root_size_gt1 := (minCpoly_eq0 y); move/(_ _ (root_minCpoly _)).
-rewrite [in X in size X]Q_eq size_map_poly -[1%N]add1n -ltn_subRL subn1.
-by rewrite -size_deriv lt0n size_poly_eq0.
-Qed.
-
-Lemma minCpoly_coprime (x y : algC) :
-  ~~ root (minCpoly x) y -> coprimep (minCpoly x) (minCpoly y).
-Proof.
-move=> /negP y_nroot; apply/Pdiv.ClosedField.coprimepP => z.
-move /minCpoly_root_irr => eq_xz; rewrite -rootE.
-apply/negP => /minCpoly_root_irr; rewrite -eq_xz.
-by move=> eq_yx; apply: y_nroot; rewrite -eq_yx root_minCpoly.
-Qed.
-
-Locate countFieldType.
-
-Lemma minCpoly_field_extension (F : countFieldType) (x : algC) 
-      (FtoC : {rmorphism F -> algC}) (FtoT : {rmorphism F -> T}) :
-  {E : countFieldType & 
-       {FtoE : {rmorphism F -> E} &
-{EtoC : {rmorphism E -> algC} | EtoC \o FtoE =1 FtoC} &
-{EtoT : {rmorphism E -> T} | EtoT \o FtoE =1 FtoT} &
-
-{u : E | x = EtoC u} & {v : E | x^* = EtoC (v)} &
-{
-
-
-
-
-       {w : E | root (map_poly ratr (sval (minCpolyP x))) w
-                & forall u : E, exists q, u = (map_poly FtoE q).[w]}}}}}.
-
-Locate countType.
-Search _ "count" in choice.
-About fin_all_exists.
-
-Search _ "morph" in ssrnum.
-
-Section FieldExtComplements.
-
-Local Open Scope quotient_scope.
-
-Variables (x y : algC).
-
-
-       (*       |-----------------rat-----------------|       *)
-       (*       |               /     \               |       *)
-       (*    f0 |     g0       v  Qx   v       g1     | f1    *)
-       (*       |   ---------Q(z0)<->Q(z0)---------   |       *)
-       (*       |  /                               \  |       *)
-       (*       v /       h0                h1      \ v       *)
-       (*       aC <---------- Q(z0)(z1) -----------> T       *)
-
-Definition f0 := (@ratr_rmorphism aCnum).
-Definition f1 := (@ratr_rmorphism T).
-
-Definition px := sval (minCpolyP x).
-
-Lemma px_aC : root (map_poly f0 px) x.
-Proof. by have [[_ _] ->] := svalP (minCpolyP x); apply: dvdpp. Qed.
-
-Lemma px_cT : root (map_poly f1 px) (algr x).
-Proof. by apply: algr_root. Qed.
-
-Let irr_px : irreducible_poly px.
-Proof. by apply: minCpolyP_irr. Qed.
-
-(* Q(z0) *)
-Definition Qx_aC := SubFieldExtType px_aC irr_px. 
-Definition Qx_cT := SubFieldExtType px_cT irr_px.
-
-(* canonical structures *)
-Canonical Qx_aC_eqType := [eqType of Qx_aC].
-Canonical Qx_aC_choiceType := [choiceType of Qx_aC].
-Canonical Qx_aC_quotType := [quotType of Qx_aC].
-Canonical Qx_aC_eqQuotType := 
-  [eqQuotType (@equiv_subfext _ _ f0 x px) of Qx_aC].
-Canonical Qx_aC_zmodType := [zmodType of Qx_aC].
-Canonical Qx_aC_ringType := [ringType of Qx_aC].
-Canonical Qx_aC_comRingType := [comRingType of Qx_aC].
-Canonical Qx_aC_unitRingType := [unitRingType of Qx_aC].
-Canonical Qx_aC_comUnitRingType := [comUnitRingType of Qx_aC].
-Canonical Qx_aC_idomainType := [idomainType of Qx_aC].
-Canonical Qx_aC_fieldType := [fieldType of Qx_aC].
-Canonical Qx_aC_lmodType := [lmodType rat of Qx_aC].
-Canonical Qx_aC_lalgType := [lalgType rat of Qx_aC].
-Canonical Qx_aC_algType := [algType rat of Qx_aC].
-Canonical Qx_aC_unitAlgType := [unitAlgType rat of Qx_aC].
-Canonical Qx_aC_vectType2 := [vectType rat of Qx_aC].
-Canonical Qx_aC_falgType := [FalgType rat of Qx_aC].
-Canonical Qx_aC_fieldExtType := [fieldExtType rat of Qx_aC].
-
-Canonical Qx_cT_eqType := [eqType of Qx_cT].
-Canonical Qx_cT_choiceType := [choiceType of Qx_cT].
-Canonical Qx_cT_quotType := [quotType of Qx_cT].
-Canonical Qx_cT_eqQuotType := 
-  [eqQuotType (@equiv_subfext _ _ f1 (algr x) px) of Qx_cT].
-Canonical Qx_cT_zmodType := [zmodType of Qx_cT].
-Canonical Qx_cT_ringType := [ringType of Qx_cT].
-Canonical Qx_cT_comRingType := [comRingType of Qx_cT].
-Canonical Qx_cT_unitRingType := [unitRingType of Qx_cT].
-Canonical Qx_cT_comUnitRingType := [comUnitRingType of Qx_cT].
-Canonical Qx_cT_idomainType := [idomainType of Qx_cT].
-Canonical Qx_cT_fieldType := [fieldType of Qx_cT].
-Canonical Qx_cT_lmodType := [lmodType rat of Qx_cT].
-Canonical Qx_cT_lalgType := [lalgType rat of Qx_cT].
-Canonical Qx_cT_algType := [algType rat of Qx_cT].
-Canonical Qx_cT_unitAlgType := [unitAlgType rat of Qx_cT].
-Canonical Qx_cT_vectType2 := [vectType rat of Qx_cT].
-Canonical Qx_cT_falgType := [FalgType rat of Qx_cT].
-Canonical Qx_cT_fieldExtType := [fieldExtType rat of Qx_cT].
-
-
-Definition g0 := (subfx_inj_rmorphism f0 x px).
-Definition g1 := (subfx_inj_rmorphism f1 (algr x) px).
-
-(* Definition d :=  (size px).-1. *)
-
-(* Lemma cast_Qx_aC : (size (if (px != 0) && root (map_poly f0 px) x  *)
-(*                       then (lead_coef px)^-1 *: px else 'X)).-1 = d. *)
-(* Proof. *)
-(* have H := (irredp_neq0 irr_px). *)
-(* by rewrite /d px_aC H /= size_scale // invr_eq0 lead_coef_eq0 H. *)
-(* Qed. *)
-
-(* Lemma cast_Qx : (size (if (px != 0) && root (map_poly f0 px) x  *)
-(*                       then (lead_coef px)^-1 *: px else 'X)).-1 = *)
-(*                 (size (if (px != 0) && root (map_poly f1 px) (algr x)  *)
-(*                       then (lead_coef px)^-1 *: px else 'X)).-1. *)
-(* Proof. by rewrite px_cT px_aC. Qed. *)
-
-Definition Qx_aCtocT (z : Qx_aC) : Qx_cT := 
-  (subfx_eval f1 (algr x) px) (sval (sig_eqW (subfxE z)) %% px).
-
-Definition Qx_cTtoaC (z : Qx_cT) : Qx_aC :=
-  (subfx_eval f0 x px) (sval (sig_eqW (subfxE z)) %% px).
-
-Lemma Qx_aCtocTK : cancel Qx_aCtocT Qx_cTtoaC.
-Proof.
-move/subfx_irreducibleP: irr_px =>/=/(_ _ _ _ px_cT (irredp_neq0 irr_px)) min_p.
-move=> z; rewrite /Qx_aCtocT /Qx_cTtoaC; case: (sig_eqW  _) => /= q ->.
-have FLinj_aC : injective (@subfx_inj _ _ f0 x px). 
-  by apply: fmorph_inj.
-apply: FLinj_aC; rewrite !(subfx_inj_eval px_aC (irredp_neq0 irr_px)).
-rewrite [in RHS](divp_eq q px) rmorphD rmorphM /= !hornerE (eqP px_aC) mulr0.
-rewrite add0r; case: (sig_eqW _) => /= r /(congr1 subfx_inj)/esym.
-rewrite !(subfx_inj_eval px_cT (irredp_neq0 irr_px)) {1}(divp_eq r px).
-rewrite rmorphD rmorphM /= !hornerE (eqP px_cT) mulr0 add0r => /eqP H.
-apply/eqP; move: H; rewrite -![_ == _.[_]]subr_eq0 -!hornerN -!hornerD.
-rewrite -!rmorphB /= -modp_opp -modp_add => /eqP/rootP/min_p H.
-case: (boolP ((r - q) %% px == 0)) => [/eqP -> | /H {H}].
-  by rewrite rmorph0 horner0.
-by rewrite leqNgt ltn_modp (irredp_neq0 irr_px).
-Qed.
-
-Lemma Qx_cTtoaCK : cancel Qx_cTtoaC Qx_aCtocT.
-Proof.
-move/subfx_irreducibleP: irr_px =>/=/(_ _ _ _ px_aC (irredp_neq0 irr_px)) min_p.
-move=> z; rewrite /Qx_aCtocT /Qx_cTtoaC; case: (sig_eqW  _) => /= q ->.
-have FLinj_cT : injective (@subfx_inj _ _ f1 (algr x) px). 
-  by apply: fmorph_inj.
-apply: FLinj_cT; rewrite !(subfx_inj_eval px_cT (irredp_neq0 irr_px)).
-rewrite [in RHS](divp_eq q px) rmorphD rmorphM /= !hornerE (eqP px_cT) mulr0.
-rewrite add0r; case: (sig_eqW _) => /= r /(congr1 subfx_inj)/esym.
-rewrite !(subfx_inj_eval px_aC (irredp_neq0 irr_px)) {1}(divp_eq r px).
-rewrite rmorphD rmorphM /= !hornerE (eqP px_aC) mulr0 add0r => /eqP H.
-apply/eqP; move: H; rewrite -![_ == _.[_]]subr_eq0 -!hornerN -!hornerD.
-rewrite -!rmorphB /= -modp_opp -modp_add.
-by move => /eqP/rootP/algr_root_map/rootP ->.
-Qed.
-
-Lemma Qx_aCtocT_is_rmorphism : rmorphism Qx_aCtocT.
-Proof.
-have FLinj_cT : injective (@subfx_inj _ _ f1 (algr x) px) by apply: fmorph_inj.
-split; [move=> a b | split; [move => a b | ]]; rewrite /Qx_aCtocT; last first.
-+ apply/FLinj_cT/eqP; rewrite !(subfx_inj_eval px_cT (irredp_neq0 irr_px)).
-  case: (sig_eqW _) => /= q /(congr1 subfx_inj)/esym/eqP.
-  rewrite (subfx_inj_eval px_aC (irredp_neq0 irr_px)) !rmorph1.
-  rewrite {1}(divp_eq q px) rmorphD rmorphM /= !hornerE (eqP px_aC) mulr0 add0r.
-  have -> : 1 = (map_poly f1 (1%:P %% px)).[algr x].
-    rewrite modp_small; last by rewrite size_polyC oner_neq0 irr_px.1.
-    by rewrite !rmorph1 hornerC.
-  have -> : 1 = (map_poly f0 (1%:P %% px)).[x].
-    rewrite modp_small; last by rewrite size_polyC oner_neq0 irr_px.1.
-    by rewrite !rmorph1 hornerC.
-  rewrite -![_ == _.[_]]subr_eq0 -!hornerN -!hornerD -!rmorphB /=.
-  by rewrite -modp_opp -modp_add => /eqP/rootP/algr_root_map/rootP ->.
-+ apply/FLinj_cT/eqP; rewrite rmorphM /=.
-  rewrite !(subfx_inj_eval px_cT (irredp_neq0 irr_px)) -(@hornerM T).
-  rewrite -rmorphM /= -subr_eq0 -hornerN -hornerD -rmorphB /=.
-  apply/eqP; case: (sig_eqW _) => /= qab /esym/eqP.
-  case: (sig_eqW _) => /= qa ->; case: (sig_eqW _) => /= qb ->.
-  rewrite -(rmorphM _ qa qb) -subr_eq0 /= -rmorphB /= => /eqP/(congr1 subfx_inj).
-  rewrite rmorph0 (subfx_inj_eval px_aC (irredp_neq0 irr_px)).
-  rewrite {1}(divp_eq (qab - (qa * qb)) px) rmorphD rmorphM /= !hornerE.
-  rewrite (eqP px_aC) mulr0 add0r => /rootP/algr_root_map/rootP H.
-  rewrite (divp_eq (qab %% px - qa %% px * (qb %% px)) px) rmorphD rmorphM /=.
-  rewrite !hornerE (eqP px_cT) mulr0 add0r.
-  have <- //: (qab - qa * qb) %% px = (qab %% px - qa %% px * (qb %% px)) %% px.
-  by rewrite !modp_add !modp_opp -modp_mul mulrC -modp_mul mulrC modp_mod.
-apply/FLinj_cT/eqP; rewrite rmorphB /=.
-rewrite !(subfx_inj_eval px_cT (irredp_neq0 irr_px)).
-rewrite -hornerN -hornerD -rmorphB /= -subr_eq0 -hornerN -hornerD -rmorphB /=.
-apply/eqP/rootP; rewrite -modp_opp -modp_add -modp_opp -modp_add.
-case: (sig_eqW _) => /= qab /esym/eqP.
-case: (sig_eqW _) => /= qa ->; case: (sig_eqW _) => /= qb ->.
-rewrite -(rmorphB _ qa qb) -subr_eq0 -rmorphB /= => /eqP/(congr1 subfx_inj).
-rewrite rmorph0 (subfx_inj_eval px_aC (irredp_neq0 irr_px)).
-rewrite {1}(divp_eq (qab - (qa - qb)) px) rmorphD rmorphM /= !hornerE.
-by rewrite (eqP px_aC) mulr0 add0r => /rootP/algr_root_map ->.
-Qed.
-
-Canonical Qx_aCtocT_additive := Additive Qx_aCtocT_is_rmorphism.
-Canonical Qx_aCtocT_rmorphism := RMorphism Qx_aCtocT_is_rmorphism.
-
-Lemma Qx_cTtoaC_is_rmorphism : rmorphism Qx_cTtoaC.
-Proof. exact: (can2_rmorphism Qx_aCtocTK Qx_cTtoaCK). Qed.
-
-Canonical Qx_cTtoaC_additive := Additive Qx_cTtoaC_is_rmorphism.
-Canonical Qx_cTtoaC_rmorphism := RMorphism Qx_cTtoaC_is_rmorphism.
-
-(* Lemma Qx_aCtocT_x : *)
-(*   Qx_aCtocT (subfx_root f0 x px) = (subfx_root f1 (algr x) px). *)
-(* Proof. *)
-
-(* Search subfx_inj. *)
-
-
-(* Lemma Qx_le (z1 z2 : Qx_aC) : *)
-(*   letc (g0 z1) (g0 z2) = letc (g1 (Qx_aCtocT z1)) (g1 (Qx_aCtocT z2)). *)
-(* Proof. *)
-(* rewrite /g0. *)
-
-(* Search _ subfx_inj. *)
-
-(* Lemma Qx_algr_x : *)
-(*   algr (g0 (subfx_root f0 x px)) = g1 (Qx_aCtocT (subfx_root f1 (algr x) px)). *)
-
-Lemma Qx_algr (z : Qx_aC) :
-  algr (g0 z) = g1 (Qx_aCtocT z).
-Proof.
-pose p := sval (minCpolyP (g0 z)).
-have [[p_eq p_mon] p_div] := svalP (minCpolyP (g0 z)).
-pose toQx_aC : rat -> Qx_aC := (inj_subfx_rmorphism f0 x px).
-have z_root_aC : root (map_poly toQx_aC p) z.
-  apply/rootP; rewrite /toQx_aC /=.
-  have g0_aC : injective g0 by apply: fmorph_inj.
-  apply : g0_aC; rewrite -horner_map -map_poly_comp /= rmorph0 -[_ z]/(g0 z).
-  have H : (subfx_inj \o inj_subfx f0 x px) =1 ratr by apply: fmorph_eq_rat.
-  rewrite (eq_map_poly H).
-  by apply/rootP; rewrite p_div dvdpp.
-have z_root : root (map_poly f1 p) (g1 (Qx_aCtocT z)).
-  apply/rootP.
-  have H : f1 =1 g1 \o Qx_aCtocT \o toQx_aC.
-    move=> a; rewrite /toQx_aC.
-    pose h := GRing.comp_rmorphism g1 (GRing.comp_rmorphism 
-                           (Qx_aCtocT_rmorphism) (inj_subfx_rmorphism f0 x px)).
-    by rewrite -[RHS]/(h a) [RHS]fmorph_eq_rat.
-  rewrite (eq_map_poly H) map_poly_comp map_poly_comp horner_map horner_map.
-  by have /rootP -> := z_root_aC; rewrite !rmorph0.
-apply: (algr_def z_root).
-About sroots.
-About subfxEroot.
-Search _ algr.
-Search _ "poly" "ind".
-Search _ dvdp map_poly.
-Search _ "rat" (_ == 0).
-
-  rewrite (eq_map_poly f0).
-
-
-fmorph_eq_rat: forall (rR : unitRingType) (f : {rmorphism rat -> rR}), f =1 ratr
-Search _ "eq" map_poly.
-horner_map:
-  forall (aR rR : ringType) (f : {rmorphism aR -> rR}) (p : {poly aR}) (x : aR),
-  (map_poly f p).[f x] = f p.[x]
-move/(map_poly_inj (@subfx_inj_rmorphism _ _ f0 x px)).
-
-Search _ map_poly injective.
-Search _ .
-Locate "^:P".
-
-map_poly_inj: forall (F : fieldType) (R : ringType) (f : {rmorphism F -> R}), injective (map_poly f)
-
-Definition f_quot0 d := (fun x : 'rV[rat]_d => 
-             (horner_morph (fun q : rat => mulrC (algr z0) (f1 q)) (rVpoly x))).
-Definition g1 : Qz0 -> T := @lift_fun1 Qz0 (@f_quot0 _).
-
-Fact pi_g1 : {mono \pi : x / (@f_quot0 _ x) >-> g1 x}.
-Proof.
-move=> x; apply/eqP; rewrite /g1 /f_quot0 /=; unlock.
-rewrite /= -subr_eq0 -rmorphB.
-About min_subfx_vectAxiom.
-Print vector.Vector.axiom_def.
-Print equiv_subfext.
-Check (equiv_subfext _ x).
-Search _ (lift_fun1 _ _).
-About lift_fun1.
-
-Fact pi_subfx_inj : {mono \pi : x / iotaFz x >-> subfx_inj x}.
-Proof.
-unlock subfx_inj => x; apply/eqP; rewrite -/(equiv_subfext _ x).
-by rewrite -eqmodE reprK.
-Qed.
-Canonical pi_subfx_inj_morph := PiMono1 pi_subfx_inj.
-
-
-(* rat -> Q(z0) *)
-Definition iota0 := (inj_subfx f0 z0 p0).
-
-Definition p1 := sval (minCpolyP z1).
-
-(* Q(z0)(z1) *)
-Definition Qz1 := subFExtend iotaC1 z1 (map_poly iota01 p1).
-
-
-
-
-
-
-End FieldExtComplements.
-
-End Algr.
 
 Module complexArchimedean.
 Section complexArchimedean.
@@ -1886,9 +1527,216 @@ Canonical complex_archiNumField (R : archiRcfType) :=
 Canonical complex_archiNumClosedField (R : archiRcfType) :=
   [archiNumClosedFieldType of R[i]].
 
-(* TODO realalg
+Module realalgArchimedean.
+Section realalgArchimedean.
+
+Fact realalg_archimedean : Num.archimedean_axiom realalg_numDomainType.
+Proof. by move=> x; have := (@RealAlg.alg_archi archiType x). Qed.
+
+End realalgArchimedean.
+End realalgArchimedean.
+
+Canonical realalg_archiNumDomainType :=
+  ArchiNumDomainType realalg realalgArchimedean.realalg_archimedean.
+Canonical realalg_archiNumFieldType := [archiNumFieldType of realalg].
+Canonical realalg_archiRealDomainType := [archiRealDomainType of realalg].
+Canonical realalg_archiRealFieldType := [archiRealFieldType of realalg].
+Canonical realalg_archiRcfType := [archiRcfType of realalg].
+
 Canonical complexalg_archiNumDomainType := [archiNumDomainType of complexalg].
 Canonical complexalg_archiNumFieldType := [archiNumFieldType of complexalg].
 Canonical complexalg_archiNumClosedFieldType := [archiNumClosedFieldType of complexalg].
-*)
 
+
+
+Section NormRcfType.
+
+(* Separate in numDomain, numField *)
+Variable T : numClosedFieldType.
+
+Structure normT := NormT {nval :> T ; _ : nval \is Num.real}.
+
+Definition normT_of of (phant T) := normT.
+Identity Coercion type_normT_of : normT_of >-> normT.
+
+Notation "{ 'normT' T }" := (normT_of (Phant T)).
+
+Canonical normT_subType := Eval hnf in [subType for nval].
+Definition normT_eqMixin := Eval hnf in [eqMixin of normT by <:].
+Canonical normT_eqType := Eval hnf in EqType normT normT_eqMixin.
+Definition normT_choiceMixin := Eval hnf in [choiceMixin of normT by <:].
+Canonical normT_choiceType := Eval hnf in ChoiceType normT normT_choiceMixin.
+Definition normT_zmodMixin := Eval hnf in [zmodMixin of normT by <:].
+Canonical normT_zmodType := Eval hnf in ZmodType normT normT_zmodMixin.
+Definition normT_ringMixin := Eval hnf in [ringMixin of normT by <:].
+Canonical normT_ringType := Eval hnf in RingType normT normT_ringMixin.
+Definition normT_comRingMixin := Eval hnf in [comRingMixin of normT by <:].
+Canonical normT_comRingType := Eval hnf in ComRingType normT normT_comRingMixin.
+Definition normT_unitRingMixin := Eval hnf in [unitRingMixin of normT by <:].
+Canonical normT_unitRingType := Eval hnf in UnitRingType normT normT_unitRingMixin.
+Canonical normT_comUnitRingType := Eval hnf in [comUnitRingType of normT].
+Definition normT_idomainMixin := Eval hnf in [idomainMixin of normT by <:].
+Canonical normT_idomainType := Eval hnf in IdomainType normT normT_idomainMixin.
+Definition normT_fieldMixin := Eval hnf in [fieldMixin of normT by <:].
+Canonical normT_fieldType := Eval hnf in FieldType normT normT_fieldMixin.
+
+Canonical normT_of_subType := Eval hnf in [subType of {normT T}].
+Canonical normT_of_eqType := Eval hnf in [eqType of {normT T} ].
+Canonical normT_of_choiceType := Eval hnf in [choiceType of {normT T}].
+Canonical normT_of_zmodType := Eval hnf in [zmodType of {normT T}].
+Canonical normT_of_ringType := Eval hnf in [ringType of {normT T}].
+Canonical normT_of_comRingType := Eval hnf in [comRingType of {normT T}].
+Canonical normT_of_unitRingType := Eval hnf in [unitRingType of {normT T}].
+Canonical normT_of_comUnitRingType := Eval hnf in [comUnitRingType of {normT T}].
+Canonical normT_of_idomainType := Eval hnf in [idomainType of {normT T}].
+Canonical normT_of_fieldType := Eval hnf in [fieldType of {normT T}].
+
+(* num structure *)
+
+Lemma nval_inj : injective nval.
+Proof. exact: val_inj. Qed.
+
+(* Lemma nval_is_rmorphism : rmorphism nval. *)
+(* Proof. by []. Qed. *)
+
+(* TODO généraliser à n'importe quelle fonction f vérifiant les bonnes hyp *)
+
+Program Definition normT_LeMixin := (@RealLeMixin _ 
+  (fun x y => (nval x) <= (nval y)) (fun x y => (nval x) < (nval y)) 
+  (fun x => @NormT `| nval x | (normr_real (nval x))) _ _ _ _ _ _ _ _).
+Obligation 1. by move=> x y; apply: addr_ge0. Qed.
+Obligation 2. by move=> x y; apply: mulr_ge0. Qed.
+Obligation 3. 
+move=> [x x_re] /= H0x Hx0.
+by apply/nval_inj/eqP => /=; rewrite eqr_le H0x Hx0.
+Qed.
+Obligation 4. by move=> x y; apply: subr_ge0. Qed.
+Obligation 5. by move=> [x] /=; rewrite realE. Qed.
+Obligation 6. by move=> [x x_re] /=; apply/nval_inj; rewrite /= normrN. Qed.
+Obligation 7. 
+by move=> [x x_re] /= H0x; apply/nval_inj; rewrite /= ger0_norm.
+Qed.
+Obligation 8. by move=> x y /=; rewrite ltr_def. Qed.
+
+Canonical normT_numDomainType := Eval hnf in NumDomainType normT normT_LeMixin.
+Canonical normT_numFieldType := Eval hnf in [numFieldType of normT].
+Canonical normT_of_numDomainType := Eval hnf in [numDomainType of {normT T}].
+Canonical normT_of_numFieldType := Eval hnf in [numFieldType of {normT T}].
+
+Program Canonical normT_realDomainType := Eval hnf in RealDomainType normT _.
+Obligation 1. by move=> [x x_re] /=; rewrite realE. Qed.
+
+Canonical normT_realFieldType := Eval hnf in [realFieldType of normT].
+Canonical normT_of_realDomainType := Eval hnf in [realDomainType of {normT T}].
+Canonical normT_of_realFieldType := Eval hnf in [realFieldType of {normT T}].
+
+(* Lemma nval_is_mono : {mono nval : x y / x <= y}. *)
+(* Proof. by []. Qed. *)
+
+(* Definition eq_norm (x y : T) := `|x| == `|y|. *)
+
+(* Fact eq_norm_is_equiv : equiv_class_of eq_norm. *)
+(* Proof. *)
+(* split => [x|x y|y x z /eqP Hxy /eqP Hyz]; first by apply/eq_refl. *)
+(*   by apply/eq_sym. *)
+(* by apply/eqP/(eq_trans Hxy Hyz). *)
+(* Qed. *)
+
+(* Canonical eq_norm_rel := EquivRelPack eq_norm_is_equiv. *)
+
+(* Local Open Scope quotient_scope. *)
+
+(* Definition normT := {eq_quot eq_norm}. *)
+
+(* Definition normT_of of (phant T) := normT. *)
+(* Identity Coercion type_normT_of : normT_of >-> normT. *)
+
+(* Notation "{ 'normT' T }" := (normT_of (Phant T)). *)
+
+(* Canonical normT_eqType := [eqType of normT]. *)
+(* Canonical normT_choiceType := [choiceType of normT]. *)
+(* Canonical normT_quotType := [quotType of normT]. *)
+(* Canonical normT_eqQuotType := [eqQuotType eq_norm of normT]. *)
+(* Canonical normT_of_eqType := [eqType of {normT T} ]. *)
+(* Canonical normT_of_choiceType := [choiceType of {normT T}]. *)
+(* Canonical normT_of_quotType := [quotType of {normT T}]. *)
+(* Canonical normT_of_eqQuotType := [eqQuotType eq_norm of {normT T}]. *)
+
+(* morphism between real numbers -> morphism between complex numbers *)
+
+Definition rT := {normT T}.
+
+Definition ext_f (f : {rmorphism realalg -> rT}) (x : complexalg) : T := 
+  (nval (f (complex.Re x))) + 'i * (nval (f (complex.Im x))).
+
+Lemma ext_f_is_rmorphism (f : {rmorphism realalg -> rT}) : rmorphism (@ext_f f).
+Proof.
+split.
++ move=> [xr xi] [yr yi]; rewrite /ext_f /= !rmorphB /= mulrBr opprD !addrA.
+  by congr (_ + _); rewrite addrAC.
+split; last by rewrite /ext_f /= rmorph0 rmorph1 mulr0 addr0.
+move=> [xr xi] [yr yi]; rewrite /ext_f /= rmorphB rmorphD !rmorphM !mulrDr /=.
+rewrite !mulrDl ![_ * ('i * _)]mulrCA addrAC [X in (_ + X + _)]addrC !addrA.
+by rewrite !mulrA; congr (_ + _ + _ + _); rewrite -expr2 sqrCi -mulrA mulN1r.
+Qed.
+
+Lemma normT_real_closed : Num.real_closed_axiom normT_numDomainType.
+Proof.
+move=> f a b le_ab /andP[fa0 fb0].
+(* R(i) alge closed -> f split en irreducible factor de deg 1 ou 2 *)
+(* si p irred de degré 2 : p = x^2 + ax + b, et donc 4b > a donc p ne change pas de signe *)
+(* Search _ root. *)
+
+(* Search _ "closed". *)
+
+(* conj_Creal: forall (C : numClosedFieldType) (x : C), x \is Num.real -> x^* = x *)
+(* complex_root_conj: *)
+(*   forall (R : rcfType) (p : {poly R[i]}) (x : R[i]), root (map_poly conjc p) x = root p (x^* )%C *)
+(* dec_factor_theorem: *)
+(*   forall (F : decFieldType) (p : {poly F}), *)
+(*   {s : seq F & *)
+(*   {q : {poly F} | p = q * \prod_(x <- s) ('X - x%:P) /\ (q != 0 -> forall x : F, ~~ root q x)}} *)
+(* closed_field_poly_normal: *)
+(*   forall (F : closedFieldType) (p : {poly F}), *)
+(*   {r : seq F | p = lead_coef p *: \prod_(z <- r) ('X - z%:P)} *)
+Admitted.
+
+Canonical normT_rcfType := Eval hnf in RcfType normT normT_real_closed.
+Canonical normT_of_rcfType := Eval hnf in [rcfType of {normT T}].
+
+Import RealAlg.
+
+Definition algdom_to_rcf (x : realalg) := to_algdom (repr x).
+
+Check algdom_to_rcf.
+
+Search _ algdom.
+Search _ "next" "root".
+
+End NormRcfType.
+
+Section Algr.
+
+Variable T : numClosedFieldType.
+
+Local Notation aCnum := Algebraics.Implementation.numClosedFieldType.
+
+Import RealAlg.
+
+Print Num.real_closed_axiom.
+
+Search _ "ivt".
+Search _ Num.real.
+Search _ root.
+Search _ rat archiFieldType.
+
+Definition algdom_to_ncf (x : realalg) := to_algdom (repr x).
+Check algdom_to_ncf.
+
+Search _ algdom.
+
+Print cauchyreals.creal_axiom.
+
+
+
+End Algr.
