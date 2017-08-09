@@ -1,7 +1,7 @@
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import ssralg ssrnum.
 From mathcomp Require Import poly ssrint rat.
-From mathcomp Require Import generic_quotient.
+From mathcomp Require Import generic_quotient polyrcf interval.
 From mathcomp Require Import realalg algC polyorder polydiv complex.
 (* From mathcomp Require Import complex mxpoly fieldext polyorder polydiv algC. *)
 (* From mathcomp Require Import matrix vector falgebra countalg. *)
@@ -1739,120 +1739,152 @@ rewrite -(conj_Creal v_re) => /(inv_inj (@conjCK _)) Hv.
 by have := x_im; rewrite -Hv v_re.
 Qed.
 
-(* Search _ nth mem in seq. *)
-
-
-(* Fixpoint decomp_im (s : seq T) (n : nat) {struct n} := *)
-(*   match s, n with *)
-(*   | _, 0 => [::]  *)
-(*   | [::], _ => [::] *)
-(*   | x :: lf, n0.+1 => let l := decomp_im (rem x^* lf) n0.-1 in *)
-(*                         x :: l *)
-(*   end. *)
-
-(* Definition decomp_real (p : {poly normT}) := *)
-(*   let s := sroots (map_poly nval p) in *)
-(*   (map (fun i => if ((i \is Num.real) =P true) is (ReflectT i_real)  *)
-(*                  then NormT i_real else 0) [seq x <- s | x \is Num.real],  *)
-(*    decomp_im [seq x <- s | x \isn't Num.real] (size [seq x <- s | x \isn't Num.real])). *)
-
-(* Lemma decomp_real_is_poly (p : {poly normT}) : *)
-(*   let l := decomp_real p in *)
-(*   p = lead_coef p *: (\prod_(x <- l.1) ('X - x%:P) * \prod_(u <- l.2)  *)
-(*              ('X^2 - (NormT (conjD_real u)) *: 'X + (NormT (conjM_real u))%:P)). *)
-(* Proof. *)
-(* rewrite /decomp_real; set s_all := sroots _. *)
-(* case: (boolP (p == 0))=> [/eqP ->| p_neq0]; first by rewrite lead_coef0 scale0r. *)
-(* have Hre : \prod_(i <- [seq x <- s_all | x \is Num.real]) ('X - i%:P) = *)
-(*            map_poly nval (\prod_(i <- (decomp_real p).1) ('X - i%:P)). *)
-(*   rewrite rmorph_prod [RHS](eq_bigr ((fun i => 'X - i%:P) \o nval)); last first. *)
-(*     by move=> x _ /=; rewrite rmorphB /= map_polyX map_polyC. *)
-(*   rewrite -[RHS](big_map _ xpredT (fun i => 'X - i%:P)) /decomp_real -/s_all. *)
-(*   apply: eq_big_perm; elim: s_all => // a l Hl /=. *)
-(*   case: ((a \is Num.real) =P true) => [H | /negP/negbTE -> //]. *)
-(*   by rewrite H /=; case: eqP => Hy //=; rewrite perm_cons Hl. *)
-(* apply/(map_poly_inj nval_rmorphism). *)
-(* rewrite [LHS]sroots_poly lead_coef_map map_polyZ rmorphM /= -Hre rmorph_prod /=. *)
-(* congr (_ *: _); rewrite -/s_all. *)
-(* have /perm_eqlP/(eq_big_perm _) <- /= := (perm_filterC (mem (Num.real)) s_all). *)
-(* rewrite big_cat /=; congr (_ * _). *)
-(* rewrite [RHS](eq_bigr (fun i => ('X - i%:P) * ('X - i^*%:P))); last first. *)
-(*   move=> x _; rewrite rmorphD rmorphB /= map_polyZ map_polyXn map_polyX /=. *)
-(*   rewrite map_polyC /= mulrBl !mulrBr expr2 -!addrA opprB; congr (_ + _). *)
-(*   rewrite ['X * _]mulrC ![_ * 'X]mul_polyC [_ - _ in RHS]addrC addrA. *)
-(*   rewrite [in _ *: _]addrC scalerDl opprD; congr (_ + _ + _). *)
-(*   by rewrite -[RHS]mulr1 -mulrA mul_polyC mul_polyC scalerA alg_polyC. *)
-(* rewrite big_split /= [X in _ = _ * X](eq_bigr ((fun i => ('X - i%:P))  *)
-(*                                         \o (fun i => i^*))); last by move=> i _. *)
-(* rewrite -[X in _ = _ * X](big_map _ xpredT (fun i => 'X - i%:P)) -big_cat /=. *)
-(* apply: eq_big_perm; set s := [seq x <- s_all | _]. *)
-(* have : \prod_(i <- s) ('X - i%:P) \is a polyOver Num.real. *)
-(*   have /polyOverZ H : (nval (lead_coef p))^-1 \is Num.real. *)
-(*     by apply/rpredVr; case: (lead_coef _) => []. *)
-(*   have /H {H} : map_poly nval p \is a polyOver Num.real. *)
-(*     by apply/polyOverP => i; rewrite coef_map /=; case: p`_i => [x x_re]. *)
-(*   rewrite (sroots_poly (map_poly nval p)) lead_coef_map /= scalerA. *)
-(*   rewrite mulVf ?scale1r -?/s_all => [H | ]; last first. *)
-(*     apply/negP => /eqP; rewrite -[0]/(nval 0) => /nval_inj/eqP. *)
-(*     by rewrite lead_coef_eq0; apply/negP. *)
-(*   have /perm_eqlP/(eq_big_perm _) /= := (perm_filterC (mem (Num.real)) s_all). *)
-(*   rewrite big_cat /= -/s Hre. set P := \prod_(_ <- _) _; set Q := P * _ => HPim. *)
- 
-(* Search _ (_ %| _). *)
-
-(* Search _ "pred" (_ * _). *)
-(* Search _ monic. *)
-
-
-
-
-
 Lemma normT_real_closed : Num.real_closed_axiom normT_numFieldType.
 Proof.
-move=> f a b le_ab /andP[fa0 fb0].
+move=> f a b le_ab /andP[].
+case: (boolP (root f a)) => [a_root _ _ | /negbTE a_nroot].
+  by exists a => //; rewrite lerr le_ab.
+rewrite ler_eqVlt -rootE a_nroot orFb => fa.
+case: (boolP (root f b)) => [b_root _ | /negbTE b_nroot].
+  by exists b => //; rewrite lerr le_ab.
+rewrite ler_eqVlt eq_sym -rootE b_nroot orFb => fb.
 (* R(i) alge closed -> f split en irreducible factor de deg 1 ou 2 *)
-set s := tag (closed_field_poly_normal (map_poly nval f)).
-set s1 := [seq x <- s | x \is Num.real]; set s2 := [seq x <- s | x \isn't Num.real].
-let rec F := fun se => match se with
-                   |[::] => [::]
-                   |a :: l => (a + a^*, a * a^*) :: (F (rem l a^*))
-                   end.
-
-
-Search _ "partition".
-
+have [l_re [l_im eq_f irr_f]] := decomp_roots_poly f.
+have root_l_re x : x \in l_re -> root f x.
+  by move=> x_in; rewrite eq_f -mul_polyC !rootM root_prod_XsubC x_in /= orbT.
+pose P2 (u v : normT) := ('X^2 + u *: 'X + v%:P).
+have eq_P2 u v x : (x + u / 2%:R) ^+ 2 + (v - (u / 2%:R) ^+ 2) = (P2 u v).[x].
+  rewrite /P2 !hornerD hornerXn hornerZ hornerX hornerC.
+  rewrite sqrrD addrCA addrK addrC -mulr_natr mulrA mulfVK ?[u * x]mulrC //.
+  by rewrite pnatr_eq0.
+have size_P2 u v : size (P2 u v) = 3.
+  rewrite /P2 -addrA size_addl ?size_polyXn //.
+  apply/(leq_ltn_trans (size_add _ _) _); rewrite gtn_max size_polyC.
+  suff: (size (u *: 'X) < 3)%N by case: (v != 0) => /=; rewrite andbT.
+  by apply/(leq_ltn_trans (size_scale_leq _ _) _); rewrite size_polyX.
 (* si p irred de degré 2 : p = x^2 + ax + b, et donc 4b > a donc p ne change pas de signe *)
-(* Search _ root. *)
-
-(* Search _ "closed". *)
-
-(* conj_Creal: forall (C : numClosedFieldType) (x : C), x \is Num.real -> x^* = x *)
-(* complex_root_conj: *)
-(*   forall (R : rcfType) (p : {poly R[i]}) (x : R[i]), root (map_poly conjc p) x = root p (x^* )%C *)
-(* dec_factor_theorem: *)
-(*   forall (F : decFieldType) (p : {poly F}), *)
-(*   {s : seq F & *)
-(*   {q : {poly F} | p = q * \prod_(x <- s) ('X - x%:P) /\ (q != 0 -> forall x : F, ~~ root q x)}} *)
-(* closed_field_poly_normal: *)
-(*   forall (F : closedFieldType) (p : {poly F}), *)
-(*   {r : seq F | p = lead_coef p *: \prod_(z <- r) ('X - z%:P)} *)
-Admitted.
+have P2_pos u v x : irreducible_poly (P2 u v) -> (P2 u v).[x] > 0.
+  move=> P2_irr; rewrite -eq_P2.
+  have H y : ~~ (root (P2 u v) y).
+    have [P2_size HP2] := P2_irr; apply/negP; rewrite -dvdp_XsubCl => Hdiv.
+    have /HP2 H: (size ('X - y%:P)%R != 1)%N by rewrite size_XsubC.
+    by have /H := Hdiv; rewrite -(dvdp_size_eqp Hdiv) size_XsubC size_P2.
+  suff : (v - (u / 2%:R) ^+ 2) > 0.
+    by rewrite -[X in _ -> X < _]addr0; apply: ler_lt_add; rewrite sqr_ge0.
+  rewrite ltrNge -oppr_ge0; apply/negP; move Heq: (- (v - _)) => y.
+  case: y Heq => [y y_re] Heq Hy; pose z := sqrtC y.
+  have : 0 <= y by []; rewrite -sqrtC_ge0 -/z => Hz.
+  have /negP := (H (NormT (ger0_real Hz) - (u / 2%:R))); apply; apply/rootP.
+  rewrite -eq_P2 addrNK /=; apply/(nval_inj); rewrite rmorphD rmorphX.  
+  by rewrite sqrtCK -[y]/(nval (NormT y_re)) -rmorphD -Heq addrC subrr.
+have Hsg x : Num.sg f.[x] = 
+             Num.sg (lead_coef f) * \prod_(i <- l_re) Num.sg ('X - i%:P).[x].
+  rewrite [in LHS]eq_f hornerZ sgrM hornerM sgrM -[RHS]mulr1 mulrA. 
+  congr (_ * _ * _); last rewrite big_seq_cond /=; last first.
+    apply: (big_rec (fun i => Num.sg i.[x] = 1)); first by rewrite hornerE sgr1.
+    move=> u p u_in Hp; rewrite hornerM sgrM Hp mulr1 -scaleNr -/(P2 (- _) _).
+    apply/gtr0_sg/P2_pos; rewrite /P2 scaleNr.
+    by apply: irr_f; move: u_in; rewrite andbT; apply.
+  apply: (big_rec2 (fun i j => Num.sg i.[x] = j)).
+    by rewrite hornerE sgr1.
+  by move=> u p v _ Hp; rewrite hornerM sgrM Hp.
+have : ~~ (Num.sg f.[a] == Num.sg f.[b]).
+  rewrite (ltr0_sg fa) (gtr0_sg fb) eq_sym -subr_eq0 opprK /=.
+  have -> : (1 + 1 = 2%:R :> normT) by rewrite -addn1 natrD.
+  by rewrite pnatr_eq0.
+have H : Num.sg (lead_coef f) != 0.
+  rewrite sgr_eq0 lead_coef_eq0; apply/negP => /eqP f_eq0.
+  by move: fa; rewrite f_eq0 horner0 ltrr.
+rewrite !Hsg (inj_eq (mulfI H)) => /negP Hneq_prod.
+have : has (fun i => (Num.sg ('X - i%:P).[a] == -1) && (Num.sg ('X - i%:P).[b] == 1)) l_re.
+  apply/negPn/negP; rewrite -all_predC => /allP Hall; apply/Hneq_prod/eqP.
+  rewrite big_seq_cond [in RHS]big_seq_cond. 
+  apply: eq_bigr => i; rewrite andbT => i_in; have /= := (Hall i i_in).
+  rewrite negb_and => /orP[]; case: (sgrP _) => //.
+  + move/eqP; rewrite !hornerE subr_eq0 => /eqP eq_ai.
+    by move: a_nroot; rewrite eq_ai (root_l_re _ i_in).
+  + rewrite !hornerE => leq_ai _; apply/esym/gtr0_sg/(ltr_le_trans leq_ai).
+    by apply/(ler_add le_ab (lerr _)).
+  + by move=> _; rewrite eq_refl.
+  + move/eqP; rewrite !hornerE subr_eq0 => /eqP eq_bi.
+    by move: b_nroot; rewrite eq_bi (root_l_re _ i_in).
+  + by move=> _; rewrite eq_refl.  
+  + rewrite !hornerE => leq_bi _; apply/ltr0_sg/(ler_lt_trans _ leq_bi).
+    by apply/(ler_add le_ab (lerr _)).
+move/hasP => [x x_in]; rewrite !hornerE !sgr_cp0 => {Hsg} /andP[] Ha Hb.
+exists x.
+  by rewrite -subr_le0 -[X in _ && X]subr_ge0 (ltrW Ha) (ltrW Hb).
+rewrite rootE eq_f !hornerE /= ?mulf_eq0; apply/orP; left; apply/orP; right.
+rewrite horner_prod prodf_seq_eq0; apply/hasP; exists x => //.
+by rewrite andTb !hornerE subrr.
+Qed.
 
 Canonical normT_rcfType := Eval hnf in RcfType normT normT_real_closed.
 Canonical normT_of_rcfType := Eval hnf in [rcfType of {normT T}].
 
+End NormRcfType.
+
+
+Section Algr.
+
+Variable R : rcfType.
+
+Definition bla (x : algdom) :=
+  
+
+
+About roots_on.
+
+Search _ uniq.
+undup_uniq: forall (T : eqType) (s : seq T), uniq (undup s)
+Definition reduce_int (x : realalg) :=
+  {a : rat & {b : rat & {p : {poly rat} | roots_on (map_poly ratr p) `]ratr a, ratr b[ [:: x]}}}.
+
+
 Import RealAlg.
+
+Lemma center_radius {F : archiFieldType} (x : algdom F) :
+  
+
+Definition reduce_algdom {F : archiFieldType} (x : algdom F) :=
+  if (annul_algdom x).[(center_alg x - radius_alg x) / 2 - ] * 
+     (annul_algdom x).[center_alg x]
+
+if p.[c' - r / 2%:R ^+ i] * p.[c'] <= 0
+          then c' - r / 2%:R ^+ i.+1
+else c' + r / 2%:R ^+ i.+1
+
+
+Lemma change_algdomP (x : algdom archiType) (c r : rat) :
+  ratr a <= (\pi_(realalg)%qT (to_algcreal x)) <= ratr b ->
+  
+
+Lemma to_algdom_equiv (x : realalg) (p : {poly rat}) (a b : rat) :
+  root (map_poly ratr p) x -> ratr a <= x <= ratr b -> 
+  size (@polyrcf.roots realalg_rcfType (map_poly ratr p) (ratr a) (ratr b))
+  == 1%N -> (\pi_(realalg)%qT (to_algcreal 
+
+
+Lemma to_algdom_properP (x : realalg) : 
+  {u : algdom archiType | (\pi_(realalg)%qT (to_algcreal u) == x) && 
+     (size (@polyrcf.roots realalg_rcfType (map_poly ratr (annul_algdom u)) 
+     (ratr (center_alg u - radius_alg u)) (ratr (center_alg u + radius_alg u))) == 1%N)}.
+Proof.
+
+
+
+Definition to_algdom_proper (x : realalg) := tag (to_algdom_properP x).
 
 Definition algdom_to_rcf (x : realalg) := to_algdom (repr x).
 
 Check algdom_to_rcf.
 
+About cauchyreals.creal_axiom.
+Locate creal_axiom.
 Search _ algdom.
 Search _ "next" "root".
 
-End NormRcfType.
 
-Section Algr.
 
 Variable T : numClosedFieldType.
 
