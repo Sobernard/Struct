@@ -1559,7 +1559,7 @@ Structure normT := NormT {nval :> T ; _ : nval \is Num.real}.
 Definition normT_of of (phant T) := normT.
 Identity Coercion type_normT_of : normT_of >-> normT.
 
-Notation "{ 'normT' T }" := (normT_of (Phant T)).
+Local Notation "{ 'normT' T }" := (normT_of (Phant T)).
 
 Canonical normT_subType := Eval hnf in [subType for nval].
 Definition normT_eqMixin := Eval hnf in [eqMixin of normT by <:].
@@ -1824,12 +1824,340 @@ Canonical normT_of_rcfType := Eval hnf in [rcfType of {normT T}].
 
 End NormRcfType.
 
+Notation "{ 'normT' T }" := (normT_of (Phant T)).
 
 Section Algr.
 
 Variable R : rcfType.
 
+(* Useless : need uniform continuity *)
+(* Lemma poly_cont_rat (x : rat) (p : {poly rat}) e : *)
+(*   e > 0 -> exists2 d, d > 0 & forall (y : R), `|y - ratr x| < ratr d ->  *)
+(*                 `|(map_poly ratr p).[y] - (map_poly ratr p).[ratr x]| < ratr e. *)
+(* Proof. *)
+(* elim/poly_ind: p e. *)
+(*   by move=> e e0; exists 1=> // y; rewrite !rmorph0 !horner0 subrr normr0 ltr0q. *)
+(* move=> p k; set pR := map_poly ratr p => Pp e e0. *)
+(* pose ex := e / ((Num.max 1 `|x|) * 3%:R). *)
+(* have ex0 : 0 < ex by rewrite pmulr_lgt0 // invr_gte0 pmulr_lgt0 ?ltr_maxr. *)
+(* have [d d0 Hd] := Pp ex ex0. *)
+(* pose ep := (e / ((Num.max 1 `|p.[x]|) * 3%:R)). *)
+(* have ep0 : 0 < ep by rewrite pmulr_lgt0 // invr_gte0 pmulr_lgt0 ?ltr_maxr. *)
+(* pose d' := Num.min (Num.min d (Num.max 1 `|x|)) ep. *)
+(* have d'0 : d' > 0 by rewrite !ltr_minr d0 ep0 ?ltr_maxr. *)
+(* exists d'; first exact: d'0. *)
+(* move=> y yxd'; have /Hd Hpyx : `|y - ratr x| < ratr d. *)
+(*   by apply/(ltr_le_trans yxd'); rewrite ler_rat !ler_minl lerr. *)
+(* have Hmap z : (map_poly ratr (p * 'X + k%:P)).[z] = pR.[z] * z + ratr k. *)
+(*   by rewrite rmorphD rmorphM /= map_polyC map_polyX !hornerE. *)
+(* rewrite !Hmap opprD addrAC -addrA addrNK -[y in _ * y](addrNK (ratr x)). *)
+(* rewrite mulrDr -addrA -mulrBl -{1}[pR.[y]](addrNK pR.[ratr x]) mulrDl. *)
+(* apply/(@ltr_le_trans _ (ratr (e / 3%:R) + ratr (e / 3%:R) + ratr (e / 3%:R))); last first. *)
+(*   by rewrite -!rmorphD ler_rat -addrA -mulr2n -mulrS -mulr_natr -ler_pdivl_mulr. *)
+(* apply/(ler_lt_trans (ler_norm_add _ _))/ltr_add; last rewrite normrM. *)
+(*   apply/(ler_lt_trans (ler_norm_add _ _))/ltr_add; rewrite normrM. *)
+(*     apply/(ltr_le_trans (ltr_pmul (normr_ge0 _) (normr_ge0 _) Hpyx yxd')). *)
+(*     rewrite -rmorphM ler_rat. *)
+(*     have : d' <= (Num.max 1 `|x|) by rewrite !ler_minl lerr orbT. *)
+(*     rewrite -(ler_pmul2l ex0) => /ler_trans; apply. *)
+(*     rewrite /ex -mulrA invfM [_ / 3%:R]mulrC -mulrA mulVf ?mulr1 //. *)
+(*     by apply/lt0r_neq0; rewrite ltr_maxr. *)
+(*   rewrite horner_map /= -ratr_norm. *)
+(*   case: (boolP (`|p.[x]| == 0)) => [/eqP -> | px_neq0]. *)
+(*     by rewrite rmorph0 mul0r ltr0q ltr_pdivl_mulr ?mul0r. *)
+(*   have /(ltr_le_trans _) : (ratr (`|p.[x]| * d') <= ratr (e / 3%:R) :> R). *)
+(*     rewrite ler_rat; apply/(@ler_trans _ ((Num.max 1 `|p.[x]|) * d')). *)
+(*       by rewrite ler_pmul2r ?d'0 // ler_maxr lerr orbT. *)
+(*     rewrite minr_pmulr ?ler_maxr // ler_minl. *)
+(*     apply/orP; right; rewrite mulrCA invfM [X in _ * X]mulrA divff //. *)
+(*     by apply/lt0r_neq0; rewrite ltr_maxr. *)
+(*   apply; rewrite [X in _ < X]rmorphM /= ltr_pmul2l ?yxd' //. *)
+(*   by rewrite ltr0q ltr_neqAle eq_sym px_neq0 normr_ge0. *)
+(* rewrite -ratr_norm; case: (boolP (`|x| == 0)) => [/eqP -> | x_neq0]. *)
+(*   by rewrite rmorph0 mulr0 ltr0q ltr_pdivl_mulr ?mul0r. *)
+(* have x_gt0 : (ratr `|x| > 0 :> R). *)
+(*   by rewrite ltr0q ltr_neqAle eq_sym x_neq0 normr_ge0. *)
+(* have := Hpyx; rewrite -(ltr_pmul2r x_gt0) => /ltr_le_trans; apply. *)
+(* rewrite -rmorphM /= ler_rat -mulrA invfM mulrAC mulrC [X in X <= _]mulrA. *)
+(* rewrite -[X in _ <= X]mulr1 (@ler_pmul2l _ (e / 3%:R)). *)
+(*   by rewrite ler_pdivr_mull ?mulr1 ?ler_maxr ?lerr ?orbT // ltr_maxr. *)
+(* by rewrite pmulr_lgt0 // invr_gte0. *)
+(* Qed. *)
+
+Import RealAlg.
+
+Lemma poly_bound_rat (p : {poly rat}) (a b : rat) :
+  (cauchyreals.poly_bound (map_poly ratr p) (ratr a) (ratr b) =
+  ratr (cauchyreals.poly_bound p a b) :> R).
+Proof.
+rewrite /cauchyreals.poly_bound size_map_poly rmorphD rmorph_sum rmorph1 /=.
+congr (_ + _); apply/eq_bigr => i _; rewrite rmorphM rmorphX /= rmorphD /=.
+by congr (_ * (_ + _) ^+ _); rewrite ratr_norm // -coef_map.
+Qed.
+
+Lemma poly_accr_bound_rat (p : {poly rat}) (a b : rat) :
+  (cauchyreals.poly_accr_bound (map_poly ratr p) (ratr a) (ratr b) =
+  ratr (cauchyreals.poly_accr_bound p a b) :> R).
+Proof.
+rewrite /cauchyreals.poly_accr_bound size_map_poly.
+rewrite rmorphM rmorphX rmorphD rmorph1 rmorph_sum /=.
+congr (_ ^+ _ * (_ + _)).
+  apply/eqP; rewrite eqr_le ler_maxr ler_maxl !mulr_natl -rmorphMn /=.
+  rewrite (_ : (1 : R) = ratr 1) ; last by rewrite rmorph1.
+  rewrite ![_ (Num.max 1 _) <= _]ler_rat !ler_maxl !lerr andbT /=.
+  rewrite ![_ <= _ (Num.max 1 _)]ler_rat !ler_maxr !lerr orbT /=.
+  by rewrite real_leVge // rpredMn ?num_real.
+by apply/eq_bigr => i _; rewrite nderivn_map poly_bound_rat.
+Qed.
+
+Lemma ler_mid {T : realFieldType} (a b x : T) :
+  (a <= x <= b) = (`|x - (b + a) / 2%:R| <= (b - a) / 2%:R).
+Proof.
+rewrite ler_norml ler_subr_addl -mulrBl ler_subl_addr -mulrDl.
+have -> : (b + a - (b - a)) = a * 2%:R.
+  by rewrite mulr_natr mulr2n opprB addrAC addrCA subrr addr0.
+have -> : (b - a + (b + a)) = b * 2%:R.
+  by rewrite mulr_natr mulr2n addrAC -!addrA subrr addr0.
+by rewrite !mulfK // pnatr_eq0.
+Qed.
+
+Lemma ltr_mid {T : realFieldType} (a b x : T) :
+  (a < x < b) = (`|x - (b + a) / 2%:R| < (b - a) / 2%:R).
+Proof.
+rewrite ltr_norml ltr_subr_addl -mulrBl ltr_subl_addr -mulrDl.
+have -> : (b + a - (b - a)) = a * 2%:R.
+  by rewrite mulr_natr mulr2n opprB addrAC addrCA subrr addr0.
+have -> : (b - a + (b + a)) = b * 2%:R.
+  by rewrite mulr_natr mulr2n addrAC -!addrA subrr addr0.
+by rewrite !mulfK // pnatr_eq0.
+Qed.
+
+Lemma map_poly_pos (p : {poly rat}) (a b e : rat) :
+  e > 0 -> (forall y, a <= y <= b -> p.[y] > e) ->
+  forall (y : R), ratr a  <= y <= ratr b -> (map_poly ratr p).[y] > 0.
+Proof.
+move=> lt_e0 lt_p x /andP[]; rewrite ler_eqVlt => /orP[/eqP <- | lt_ax].
+  rewrite ler_rat => le_ab; rewrite horner_map ltr0q.
+  by apply/(ltr_trans lt_e0 (lt_p _ _)); rewrite lerr le_ab.
+rewrite ler_eqVlt => /orP[/eqP eq_xb | lt_xb].
+  rewrite eq_xb horner_map ltr0q; rewrite eq_xb ltr_rat in lt_ax.
+  by apply/(ltr_trans lt_e0 (lt_p _ _)); rewrite lerr (ltrW lt_ax).
+have lt_ab : a < b by have := (ltr_trans lt_ax lt_xb); rewrite ltr_rat.
+have := (@cauchyreals.poly_accr_bound1P _ (map_poly ratr p) 
+                             (ratr ((b + a) / 2%:R)) (ratr ((b - a) / 2%:R)) x).
+set m := (_ / 2%:R); set r := (_ / 2%:R).
+rewrite poly_accr_bound_rat; set k := _ p _ _; set k' := e / k => Hk.
+have lt_k'0 : k' > 0 by apply/divr_gt0/cauchyreals.poly_accr_bound_gt0/lt_e0.
+pose n := truncC ((b - a) / k').
+pose n' := [arg max_(i > (@ord0 n) | x - ratr (a + k' * i%:R) >= 0) i].
+have Pn'0 :  0 <= x - ratr (a + k' * (@ord0 n)%:R).
+  by rewrite mulr0 addr0 subr_ge0 (ltrW lt_ax).
+have /truncC_itv/andP[] : ((b - a) / k') >= 0.
+  by apply/divr_ge0/(ltrW lt_k'0); rewrite subr_ge0 (ltrW lt_ab).
+rewrite -/n => le_n gt_n; pose y := (a + k' * n'%:R).
+have lt_ay : a <= y.
+  by rewrite -ler_subl_addl subrr mulr_natr mulrn_wge0 // (ltrW lt_k'0).
+have lt_yb : y <= b.
+  rewrite -ler_subr_addl mulrC -ler_pdivl_mulr ?lt_k'0 //.
+  apply/(ler_trans _ le_n); rewrite ler_nat /n'; case: arg_maxP => //.
+  by move=> i _ _; rewrite -ltnS; apply/ltn_ord.
+have Hym : `|ratr y - ratr m| <= ratr r :> R.
+  by rewrite -rmorphB -ratr_norm ler_rat /r /m -ler_mid lt_ay lt_yb.
+have Hxm : `|x - ratr m| <= ratr r.
+  rewrite /m /r ![ratr (_ / 2%:R)]fmorph_div rmorphD rmorphB /= ratr_nat.
+  by rewrite -ler_mid (ltrW lt_ax) (ltrW lt_xb).
+have Hyx : (`|ratr y - x| <= ratr k').
+  have Hle0 : ratr (a + k' * n'%:R) - x <= 0.
+    by rewrite /n'; case: arg_maxP => // i Pi _; rewrite subr_le0 -subr_ge0.
+  rewrite (ler0_norm Hle0) opprB /n'; case: arg_maxP => // im Pim Him.
+  rewrite ler_subl_addl -rmorphD -addrA mulr_natr -mulrSr -mulr_natr /=.
+  apply/ltrW; case: (boolP (im.+1 < n.+1)%N) => [ord_i | ].
+    apply/negPn/negP; rewrite -lerNgt -subr_ge0 => H.
+    by have /= := (Him (Ordinal ord_i)); move/(_ H); rewrite ltnn.
+  rewrite -leqNgt ltnS leq_eqVlt leqNgt ltn_ord orbF => /eqP <-.
+  apply/(ltr_trans lt_xb); rewrite ltr_rat -ltr_subl_addl -ltr_pdivr_mull //. 
+  by rewrite mulrC gt_n.
+have Hqd := (Hk _ Hxm Hym); have le_k0: ratr k >= 0 :> R. 
+  by rewrite ler0q; apply/cauchyreals.poly_accr_bound_ge0.
+have := (ler_trans Hqd (ler_pmul (normr_ge0 _) le_k0 Hyx (lerr _))).
+rewrite -rmorphM /k' divfK /=; last first.
+  by rewrite real_neqr_lt ?num_real // cauchyreals.poly_accr_bound_gt0 orbT.
+rewrite ler_norml => /andP[_]; rewrite ler_subl_addr -ler_subl_addl.
+move/(ltr_le_trans _); apply; rewrite subr_gt0 horner_map ltr_rat.
+by apply/lt_p; rewrite lt_ay lt_yb.
+Qed.
+
+Lemma to_RP (x : realalg) (a b : rat) (p : {poly rat}) (e : rat) :
+  (ratr a <= x <= ratr b) -> (p.[a] <= 0 <= p.[b]) -> (root (map_poly ratr p) x) ->
+       (e > 0) -> (forall y, a <= y <= b -> (p^`()).[y] > e)  ->
+  {u : R | (ratr a <= u <= ratr b) && (root (map_poly ratr p) u)}.
+Proof.
+move=> /andP[le_ax le_xb] /andP[].
+have le_abR : (ratr a <= ratr b :> R).
+  by have :=  (ler_trans le_ax le_xb); rewrite !ler_rat.
+rewrite ler_eqVlt; case: (boolP (p.[a] == 0)) => [/eqP root_p _ pb0 | _ /= pa0].
+  move=> _ _ _; exists (ratr a); rewrite lerr rootE horner_map le_abR /=.
+  by rewrite fmorph_eq0 root_p.
+rewrite ler_eqVlt; case: (boolP (0 == p.[b])) => [/eqP root_p _ | _ /= pb0].
+  move=> _ _ _; exists (ratr b); rewrite lerr rootE horner_map le_abR /=.
+  by rewrite fmorph_eq0 root_p.
+move=> root_p lt_e0 der_p; pose q := (map_poly ratr p : {poly R}).
+have q0_in : 0 \in `]q.[ratr a], q.[ratr b][.
+  by rewrite inE !horner_map /= ltr0q ltrq0 pa0 pb0.
+have [y |u [q_neg root_q u_in q_pos]] := (derp_root _ le_abR q0_in). 
+  rewrite inE deriv_map /= => /andP[/ltrW lt_ay /ltrW lt_yb].
+  by apply: (map_poly_pos lt_e0 der_p); rewrite lt_ay lt_yb.
+exists u; apply/andP; split; last by apply/rootP/root_q.
+by have := u_in; rewrite inE => /andP[/ltrW -> /ltrW ->].
+Qed.
+
+(* Lemma approx_rat_inf (x : R) (a b : rat) : *)
+(*   ratr a < x -> x <= ratr b -> {y : rat | a < y & ratr y < x}. *)
+(* Proof. *)
+(* Admitted. *)
+
+(* Lemma approx_rat_sup (x : R) (a b : rat) : *)
+(*   ratr a <= x < ratr b -> {y : rat | y < b & x < ratr y}. *)
+(* Proof. *)
+(* Admitted. *)
+
+(* closed intervals instead of open ones  :TODO: change in polyrcf *)
+Lemma deriv_sign_proper (a b : R) p :
+  (forall x, x \in `]a, b[ -> p^`().[x] >= 0)
+  -> (forall x y, (x \in `[a, b]) && (y \in `[a, b])
+    ->  x < y -> p.[x] <= p.[y] ).
+Proof.
+move=> Pab x y; case/andP=> hx hy xy.
+rewrite -subr_gte0; case: (@mvt _ x y p)=> //.
+move=> c hc ->; rewrite pmulr_lge0 ?subr_gt0 ?Pab //.
+by apply: subitvP hc; rewrite //= ?(itvP hx) ?(itvP hy).
+Qed.
+  
+Lemma better_params (x : R) (p : {poly rat}) (u v : rat) :
+  p != 0 -> ratr u <= x <= ratr v -> (root (map_poly ratr p) x) ->
+  {a : rat & {b : rat & {e : rat & {q : {poly rat} | 
+    [/\ (ratr a <= x <= ratr b), (q.[a] <= 0 <= q.[b]), (root (map_poly ratr q) x),
+        (0 < e) & (forall y, a <= y <= b -> (q^`()).[y] > e)]}}}}.
+Proof.
+(* x should not be a root of p^`() *)
+wlog: p / separable.separable_poly p.
+  move=> ihp p_n0 /andP[le_ux le_xv] root_p.
+  pose ps := p %/ (gcdp p p^`()).
+  have lc_n0 : lead_coef (gcdp p p^`()) != 0.
+    by rewrite lead_coef_eq0 gcdp_eq0 negb_and p_n0. 
+  have eq_p := (divpK (dvdp_gcdl p (deriv p))).
+  have ps_n0 : ps != 0.
+    apply/negP => /eqP eq_ps; have:= eq_p; rewrite -/ps eq_ps mul0r.
+    by move/esym; apply/eqP/p_n0.
+  have root_ps : root (map_poly ratr ps) x.
+    rewrite /ps -mu_gt0; last first.
+      rewrite map_poly_eq0; apply/negP => /eqP H; rewrite H mul0r in eq_p.
+      by rewrite -eq_p eq_refl in p_n0.
+    rewrite -(ltn_add2r (\mu_x (map_poly ratr (gcdp p p^`())))) add0n -mu_mul //.
+      rewrite -rmorphM /= divpK ?dvdp_gcdl //.
+      rewrite (mu_deriv_root _ root_p) ?map_poly_eq0 // addn1 ltnS /=. 
+      rewrite gcdp_map deriv_map /=.
+      have H := (divpK (dvdp_gcdr (map_poly ratr p) (map_poly ratr p^`()))).
+      rewrite -{2}H mu_mul ?leq_addl // H -size_poly_eq0 -deriv_map size_deriv.
+      rewrite -lt0n -ltnS prednK; last by rewrite lt0n size_poly_eq0 map_poly_eq0.
+      by apply: (root_size_gt1 _ root_p); rewrite map_poly_eq0.
+    by apply/mulf_neq0; rewrite map_poly_eq0 -?/ps ?ps_n0 -?lead_coef_eq0 ?lc_n0.
+  have sep_ps : separable.separable_poly ps by apply/separable.make_separable.
+  by apply/(ihp ps sep_ps ps_n0 _ root_ps); rewrite le_ux le_xv.
+(* p^`() should be positive on x *)
+wlog : p / (map_poly ratr p)^`().[x] > 0 => [ihp | ].
+  case: (ltrgt0P (map_poly ratr p)^`().[x]); first by apply: ihp.
+    move=> p_neg p_sep p_n0 le_x root_p; apply: (ihp (-p)) => //.
+    + by rewrite rmorphN derivN hornerN oppr_gt0 /= p_neg.
+    + have := p_sep; rewrite /separable.separable_poly derivN /coprimep.
+      rewrite -mulN1r -[- p^`()]mulN1r -(eqp_size (mulp_gcdr _ _ _)) mulN1r.
+      by rewrite size_opp.
+    + by rewrite oppr_eq0.
+    by rewrite rmorphN rootN.
+  move=> root_p' p_sep p_n0 _ root_p.
+  have pm_sep : separable.separable_poly (map_poly ratr p : {poly R}). 
+    by rewrite separable.separable_map.
+  by have := (coprimep_root pm_sep root_p); rewrite root_p' eq_refl.
+move=> p'_lt0 _; move: p'_lt0.
+wlog: u / ratr u < x.  
+  move=> ihp lt_p'x p_n0 le_uxv.
+  have /andP[] := le_uxv; rewrite ler_eqVlt.
+  case: (boolP (ratr u == x)) => [/eqP eq_ux _ le_xv| _].
+    have lt_u'x : ratr (u - 1) < x; first rewrite rmorphB rmorph1 /= eq_ux.
+      by rewrite ltr_subl_addl -ltr_subl_addr subrr ltr01.
+    have lt_u'xv : (ratr (u - 1) <= x <= ratr v).
+      by rewrite (ltrW lt_u'x) le_xv.
+    by apply: (ihp (u - 1) lt_u'x lt_p'x p_n0 lt_u'xv).
+  by rewrite orFb => lt_ux _; apply/(ihp u lt_ux).
+wlog: v / x < ratr v.  
+  move=> ihp lt_ux lt_p'x p_n0 le_uxv.
+  have /andP[_] := le_uxv; rewrite ler_eqVlt.
+  case: (boolP (ratr v == x)) => [/eqP eq_vx _ |].
+    have lt_xv' : x < ratr (v + 1); first rewrite rmorphD rmorph1 /= -eq_vx.
+      by rewrite -ltr_subl_addl subrr ltr01.
+    have lt_uxv' : (ratr u <= x <= ratr (v + 1)).
+      by rewrite (ltrW lt_ux) (ltrW lt_xv').
+    by apply: (ihp (v + 1) lt_xv' lt_ux lt_p'x p_n0 lt_uxv').
+  by rewrite eq_sym; move=> /negbTE ->; rewrite orFb => /ihp; apply.
+wlog: u v / {e : rat | e > 0 & forall y : rat, u <= y <= v -> e < (p^`()).[y]}.
+  move=> ihp lt_xv lt_ux lt_p'x p_n0 le_uxv root_p.
+  have /andP[le_ux le_xv] := le_uxv.
+  have := le_uxv; rewrite ler_mid -rmorphD -rmorphB.
+  have H a : ratr a / 2%:R = ratr (a / 2%:R) :> R.
+    by rewrite fmorph_div /= ratr_nat.
+  move/(cauchyreals.poly_boundP (map_poly ratr p)^`()).
+  rewrite deriv_map !H /= poly_bound_rat ler_norml => /andP[_] ge_p'x {H}.
+  have := (@approx_rat_inf _ 0 _ _ ge_p'x); rewrite rmorph0 -{1}deriv_map.
+  move/(_ lt_p'x) => [e lt_e0 lt_ep'x].
+  have p'_n0 : (map_poly ratr p^`()) != 0 :> {poly R}.
+    by apply/negP => /eqP H; have := lt_p'x; rewrite deriv_map H horner0 ltrr.
+  pose q := (map_poly ratr p^`() - (ratr e)%:P) : {poly R}.
+  have q_n0 : q != 0.
+    rewrite /q; apply/negP=> /eqP /(congr1 (fun i => i.[x])).
+    by rewrite !hornerE => H; have := lt_ep'x; rewrite -subr_gt0 H ltrr.
+  have := (prev_root_lt lt_ux q_n0); set u' := prev_root _ _ _. 
+
+
+have le_uu_ : ratr u < u'.
+    have := (prev_root_in q (ratr u) x); rewrite inE => /andP[].
+
+  pose v' := next_root (map_poly ratr p^`() - (ratr e)%:P) x (ratr v).
+  
+
+
+Search _ next_root.
+Lemma sgr_neighplN p a x :
+~~ root p x -> {in neighpl p a x, forall y, (sgr p.[y] = sgr p.[x])}.
+prev_root_in: forall (R : rcfType) (p : {poly R}) (a b : R), prev_root p a b \in `[(Num.min a b), b]
+prev_root_lt: forall (R : rcfType) (p : {poly R}) (a b : R), a < b -> p != 0 -> prev_root p a b < b
+ 
+Lemma approx_rat_inf (x : R) (a b : rat) :
+  ratr a < x -> x <= ratr b -> {y : rat | a < y & ratr y < x}.
+
+move=> [e lt_e0 He] _ p_n0 /andP[le_ux le_xv] root_p; have /rootP px := root_p.
+exists u; exists v; exists e; exists p; split => //; rewrite ?le_ux ?le_xv //.
+have /deriv_sign_proper H0 : forall y : R, y \in `](ratr u),(ratr v)[ -> 
+                        0 <= ((map_poly ratr p)^`()).[y]. 
+  move=> y; rewrite inE => /andP[lt_uy lt_yv]; apply/ltrW; rewrite deriv_map.
+  by apply/(map_poly_pos lt_e0 He); rewrite (ltrW lt_uy) (ltrW lt_yv).
+apply/andP; split.
+  case: (boolP (x == ratr u)) => [/eqP eq_xu | neq_xu].
+    have: (map_poly ratr p).[ratr u] == 0 :> R by rewrite -eq_xu px.
+    by rewrite horner_map /= fmorph_eq0 => /eqP ->; rewrite lerr.
+  have := (H0 (ratr u) x); rewrite px horner_map lerq0 => -> //=.
+    by rewrite !inE lerr le_ux le_xv (ler_trans le_ux le_xv).
+  by rewrite ltr_neqAle eq_sym le_ux neq_xu.
+case: (boolP (x == ratr v)) => [/eqP eq_xv | neq_xv].
+  have: (map_poly ratr p).[ratr v] == 0 :> R by rewrite -eq_xv px.
+  by rewrite horner_map /= fmorph_eq0 => /eqP ->; rewrite lerr.
+have := (H0 x (ratr v)); rewrite px horner_map ler0q => -> //=.
+  by rewrite !inE lerr le_ux le_xv (ler_trans le_ux le_xv).
+by rewrite ltr_neqAle le_xv neq_xv.
+Qed.
+
 Definition bla (x : algdom) :=
+
+
   
 
 
@@ -1841,7 +2169,6 @@ Definition reduce_int (x : realalg) :=
   {a : rat & {b : rat & {p : {poly rat} | roots_on (map_poly ratr p) `]ratr a, ratr b[ [:: x]}}}.
 
 
-Import RealAlg.
 
 Lemma center_radius {F : archiFieldType} (x : algdom F) :
   
