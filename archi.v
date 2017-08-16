@@ -315,90 +315,61 @@ Module ArchiRealField.
 
 Section ClassDef.
 
-Record class_of R :=
-  Class { base : Num.RealField.class_of R; mixin : @Num.archimedean_axiom (num_for R base) }.
-Definition base2 R (c : class_of R) := ArchiNumField.Class (@mixin R c).
-Local Coercion base : class_of >-> Num.RealField.class_of.
-Definition base3 R (c : class_of R) := @ArchiRealDomain.Class _ c (@mixin _ c). (* TODO : order *)
-Local Coercion base2 : class_of >-> ArchiNumField.class_of.
-Local Coercion base3 : class_of >-> ArchiRealDomain.class_of.
+(* Record class_of R := *)
+(*   Class { base : Num.RealField.class_of R; mixin : @Num.archimedean_axiom (num_for R base) }. *)
+Definition base2 R (c : Num.ArchimedeanField.class_of R) := 
+  let: Num.ArchimedeanField.Class _ m := c in ArchiNumField.Class m.
+Local Coercion base2 : Num.ArchimedeanField.class_of >-> ArchiNumField.class_of.
+Definition base3 R (c : Num.ArchimedeanField.class_of R) := 
+  let: @Num.ArchimedeanField.Class _ b m := c in 
+  @ArchiRealDomain.Class _ b m. 
+Local Coercion base3 : Num.ArchimedeanField.class_of >-> ArchiRealDomain.class_of.
 
-Structure type := Pack {sort; _ : class_of sort; _ : Type}.
-Local Coercion sort : type >-> Sortclass.
-Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
-Let xT := let: Pack T _ _ := cT in T.
-Notation xclass := (class : class_of xT).
-Definition pack :=
-  fun bT b & phant_id (Num.RealField.class bT) (b : Num.RealField.class_of T) =>
-  fun mT m & phant_id (ArchiNumDomain.class mT) (@ArchiNumDomain.Class T b m) =>
-  Pack (@Class T b m) T.
+Variables (T : Type) (cT : Num.ArchimedeanField.type).
+Let xT := let: Num.ArchimedeanField.Pack T _ _ := cT in T.
+Notation xclass := 
+  (@Num.ArchimedeanField.class cT : Num.ArchimedeanField.class_of xT).
 
-Definition eqType := @Equality.Pack cT xclass xT.
-Definition choiceType := @Choice.Pack cT xclass xT.
-Definition zmodType := @GRing.Zmodule.Pack cT xclass xT.
-Definition ringType := @GRing.Ring.Pack cT xclass xT.
-Definition comRingType := @GRing.ComRing.Pack cT xclass xT.
-Definition unitRingType := @GRing.UnitRing.Pack cT xclass xT.
-Definition comUnitRingType := @GRing.ComUnitRing.Pack cT xclass xT.
-Definition idomainType := @GRing.IntegralDomain.Pack cT xclass xT.
-Definition numDomainType := @Num.NumDomain.Pack cT xclass xT.
-Definition realDomainType := @Num.RealDomain.Pack cT xclass xT.
-Definition fieldType := @GRing.Field.Pack cT xclass xT.
-Definition numFieldType := @Num.NumField.Pack cT xclass xT.
-Definition realFieldType := @Num.RealField.Pack cT xclass xT.
 Definition archiNumDomainType := @ArchiNumDomain.Pack cT xclass xT.
 Definition archiNumFieldType := @ArchiNumField.Pack cT xclass xT.
 Definition archiRealDomainType := @ArchiRealDomain.Pack cT xclass xT.
-Definition join_archiNumFieldType := @ArchiNumField.Pack numFieldType xclass xT.
-Definition join_archiRealDomainType := @ArchiRealDomain.Pack realDomainType xclass xT.
-
+Definition join_archiNumFieldType := 
+  @ArchiNumField.Pack (Num.ArchimedeanField.numFieldType cT) xclass xT.
+Definition join_archiRealDomainType := 
+  @ArchiRealDomain.Pack (Num.ArchimedeanField.realDomainType cT) xclass xT.
+Definition join_archiNumDomainType := 
+  @ArchiNumDomain.Pack (Num.ArchimedeanField.numDomainType cT) xclass xT.
 End ClassDef.
 
 Module Exports.
-Coercion base : class_of >-> Num.RealField.class_of.
-Coercion base2 : class_of >-> ArchiNumField.class_of.
-Coercion base3 : class_of >-> ArchiRealDomain.class_of.
-Coercion sort : type >-> Sortclass.
-Bind Scope ring_scope with sort.
-Coercion eqType : type >-> Equality.type.
-Canonical eqType.
-Coercion choiceType : type >-> Choice.type.
-Canonical choiceType.
-Coercion zmodType : type >-> GRing.Zmodule.type.
-Canonical zmodType.
-Coercion ringType : type >-> GRing.Ring.type.
-Canonical ringType.
-Coercion comRingType : type >-> GRing.ComRing.type.
-Canonical comRingType.
-Coercion unitRingType : type >-> GRing.UnitRing.type.
-Canonical unitRingType.
-Coercion comUnitRingType : type >-> GRing.ComUnitRing.type.
-Canonical comUnitRingType.
-Coercion idomainType : type >-> GRing.IntegralDomain.type.
-Canonical idomainType.
-Coercion numDomainType : type >-> Num.NumDomain.type.
-Canonical numDomainType.
-Coercion archiNumDomainType : type >-> ArchiNumDomain.type.
+Coercion base2 : Num.ArchimedeanField.class_of >-> ArchiNumField.class_of.
+Coercion base3 : Num.ArchimedeanField.class_of >-> ArchiRealDomain.class_of.
+Coercion archiNumDomainType : Num.ArchimedeanField.type >-> ArchiNumDomain.type.
 Canonical archiNumDomainType.
-Coercion realDomainType : type >-> Num.RealDomain.type.
-Canonical realDomainType.
-Coercion archiRealDomainType : type >-> ArchiRealDomain.type.
+Coercion archiRealDomainType : Num.ArchimedeanField.type >-> ArchiRealDomain.type.
 Canonical archiRealDomainType.
-Coercion fieldType : type >-> GRing.Field.type.
-Canonical fieldType.
-Coercion numFieldType : type >-> Num.NumField.type.
-Canonical numFieldType.
-Coercion archiNumFieldType : type >-> ArchiNumField.type.
+Coercion archiNumFieldType : Num.ArchimedeanField.type >-> ArchiNumField.type.
 Canonical archiNumFieldType.
-Coercion realFieldType : type >-> Num.RealField.type.
-Canonical realFieldType.
 Canonical join_archiNumFieldType.
 Canonical join_archiRealDomainType.
-Notation archiRealFieldType := type.
-Notation "[ 'archiRealFieldType' 'of' T ]" := (@pack T _ _ id _ _ id)
-  (at level 0, format "[ 'archiRealFieldType'  'of'  T ]") : form_scope.
+Canonical join_archiNumDomainType.
 End Exports.
+
+(* "is_true
+    (@Num.Def.ler (Num.ArchimedeanField.numDomainType T)
+       (GRing.zero (Num.NumDomain.zmodType (Num.ArchimedeanField.numDomainType T)))
+       (@GRing.mul (Num.NumDomain.ringType (Num.ArchimedeanField.numDomainType T))
+          (GRing.one (Num.NumDomain.ringType (Num.ArchimedeanField.numDomainType T)))
+          (@GRing.inv (Num.NumDomain.unitRingType (Num.ArchimedeanField.numDomainType T)) e)))"
+while it is expected to have type
+ "is_true
+    (@Num.Def.ler (ArchiNumDomain.numDomainType (ArchiRealField.archiNumDomainType T))
+       (GRing.zero
+          (Num.NumDomain.zmodType
+             (ArchiNumDomain.numDomainType (ArchiRealField.archiNumDomainType T))))
+       (@GRing.mul (GRing.UnitRing.ringType (Num.ArchimedeanField.unitRingType T))
+          (GRing.one (GRing.UnitRing.ringType (Num.ArchimedeanField.unitRingType T)))
+          (@GRing.inv (Num.ArchimedeanField.unitRingType T) e)))".*)
 
 End ArchiRealField.
 Import ArchiRealField.Exports.
@@ -409,9 +380,9 @@ Section ClassDef.
 
 Record class_of R :=
   Class { base : Num.RealClosedField.class_of R; mixin : @Num.archimedean_axiom (num_for R base) }.
-Definition base2 R (c : class_of R) := ArchiRealField.Class (@mixin R c).
+Definition base2 R (c : class_of R) := Num.ArchimedeanField.Class (@mixin R c).
 Local Coercion base : class_of >-> Num.RealClosedField.class_of.
-Local Coercion base2 : class_of >-> ArchiRealField.class_of.
+Local Coercion base2 : class_of >-> Num.ArchimedeanField.class_of.
 
 Structure type := Pack {sort; _ : class_of sort; _ : Type}.
 Local Coercion sort : type >-> Sortclass.
@@ -440,14 +411,14 @@ Definition fieldType := @GRing.Field.Pack cT xclass xT.
 Definition numFieldType := @Num.NumField.Pack cT xclass xT.
 Definition archiNumFieldType := @ArchiNumField.Pack cT xclass xT.
 Definition realFieldType := @Num.RealField.Pack cT xclass xT.
-Definition archiRealFieldType := @ArchiRealField.Pack cT xclass xT.
+Definition archiRealFieldType := @Num.ArchimedeanField.Pack cT xclass xT.
 Definition realClosedFieldType := @Num.RealClosedField.Pack cT xclass xT.
 
 End ClassDef.
 
 Module Exports.
 Coercion base : class_of >-> Num.RealClosedField.class_of.
-Coercion base2 : class_of >-> ArchiRealField.class_of.
+Coercion base2 : class_of >-> Num.ArchimedeanField.class_of.
 Coercion sort : type >-> Sortclass.
 Bind Scope ring_scope with sort.
 Coercion eqType : type >-> Equality.type.
@@ -482,7 +453,7 @@ Coercion realFieldType : type >-> Num.RealField.type.
 Canonical realFieldType.
 Coercion archiNumFieldType : type >-> ArchiNumField.type.
 Canonical archiNumFieldType.
-Coercion archiRealFieldType : type >-> ArchiRealField.type.
+Coercion archiRealFieldType : type >-> Num.ArchimedeanField.type.
 Canonical archiRealFieldType.
 Coercion realClosedFieldType : type >-> Num.RealClosedField.type.
 Canonical realClosedFieldType.
@@ -514,6 +485,9 @@ Module Theory.
 Section ArchiNumTheory.
 
 Variables (R : archiNumDomainType) (x : R).
+
+Check x.
+Check (0 <= x).
 
 Lemma archi_boundP : 0 <= x -> x < (bound x)%:R.
 Proof. by move/ger0_norm=> {1}<-; rewrite /bound; case: (sigW _). Qed.
@@ -990,7 +964,7 @@ Canonical rat_archiRealDomain :=
 Canonical rat_archiNumField :=
   Eval hnf in [archiNumFieldType of rat].
 Canonical rat_archiRealField :=
-  Eval hnf in [archiRealFieldType of rat].
+  Eval hnf in [archiFieldType of rat].
 
 
 Section QintPred.
@@ -1540,7 +1514,7 @@ Canonical realalg_archiNumDomainType :=
   ArchiNumDomainType realalg realalgArchimedean.realalg_archimedean.
 Canonical realalg_archiNumFieldType := [archiNumFieldType of realalg].
 Canonical realalg_archiRealDomainType := [archiRealDomainType of realalg].
-Canonical realalg_archiRealFieldType := [archiRealFieldType of realalg].
+Canonical realalg_archiRealFieldType := [archiFieldType of realalg].
 Canonical realalg_archiRcfType := [archiRcfType of realalg].
 
 Canonical complexalg_archiNumDomainType := [archiNumDomainType of complexalg].
@@ -1886,24 +1860,24 @@ Variable R : rcfType.
 
 Import RealAlg.
 
-Lemma poly_bound_rat (p : {poly rat}) (a b : rat) :
+Lemma poly_bound_rat {T : realFieldType} (p : {poly rat}) (a b : rat) :
   (cauchyreals.poly_bound (map_poly ratr p) (ratr a) (ratr b) =
-  ratr (cauchyreals.poly_bound p a b) :> R).
+  ratr (cauchyreals.poly_bound p a b) :> T).
 Proof.
 rewrite /cauchyreals.poly_bound size_map_poly rmorphD rmorph_sum rmorph1 /=.
 congr (_ + _); apply/eq_bigr => i _; rewrite rmorphM rmorphX /= rmorphD /=.
 by congr (_ * (_ + _) ^+ _); rewrite ratr_norm // -coef_map.
 Qed.
 
-Lemma poly_accr_bound_rat (p : {poly rat}) (a b : rat) :
+Lemma poly_accr_bound_rat {T : realFieldType} (p : {poly rat}) (a b : rat) :
   (cauchyreals.poly_accr_bound (map_poly ratr p) (ratr a) (ratr b) =
-  ratr (cauchyreals.poly_accr_bound p a b) :> R).
+  ratr (cauchyreals.poly_accr_bound p a b) :> T).
 Proof.
 rewrite /cauchyreals.poly_accr_bound size_map_poly.
 rewrite rmorphM rmorphX rmorphD rmorph1 rmorph_sum /=.
 congr (_ ^+ _ * (_ + _)).
   apply/eqP; rewrite eqr_le ler_maxr ler_maxl !mulr_natl -rmorphMn /=.
-  rewrite (_ : (1 : R) = ratr 1) ; last by rewrite rmorph1.
+  rewrite (_ : (1 : T) = ratr 1) ; last by rewrite rmorph1.
   rewrite ![_ (Num.max 1 _) <= _]ler_rat !ler_maxl !lerr andbT /=.
   rewrite ![_ <= _ (Num.max 1 _)]ler_rat !ler_maxr !lerr orbT /=.
   by rewrite real_leVge // rpredMn ?num_real.
@@ -1932,9 +1906,9 @@ have -> : (b - a + (b + a)) = b * 2%:R.
 by rewrite !mulfK // pnatr_eq0.
 Qed.
 
-Lemma map_poly_pos (p : {poly rat}) (a b e : rat) :
+Lemma map_poly_pos {T : rcfType} (p : {poly rat}) (a b e : rat) :
   e > 0 -> (forall y, a <= y <= b -> p.[y] > e) ->
-  forall (y : R), ratr a  <= y <= ratr b -> (map_poly ratr p).[y] > 0.
+  forall (y : T), ratr a  <= y <= ratr b -> (map_poly ratr p).[y] > 0.
 Proof.
 move=> lt_e0 lt_p x /andP[]; rewrite ler_eqVlt => /orP[/eqP <- | lt_ax].
   rewrite ler_rat => le_ab; rewrite horner_map ltr0q.
@@ -1961,12 +1935,12 @@ have lt_yb : y <= b.
   rewrite -ler_subr_addl mulrC -ler_pdivl_mulr ?lt_k'0 //.
   apply/(ler_trans _ le_n); rewrite ler_nat /n'; case: arg_maxP => //.
   by move=> i _ _; rewrite -ltnS; apply/ltn_ord.
-have Hym : `|ratr y - ratr m| <= ratr r :> R.
+have Hym : `|ratr y - ratr m| <= ratr r :> T.
   by rewrite -rmorphB -ratr_norm ler_rat /r /m -ler_mid lt_ay lt_yb.
 have Hxm : `|x - ratr m| <= ratr r.
   rewrite /m /r ![ratr (_ / 2%:R)]fmorph_div rmorphD rmorphB /= ratr_nat.
   by rewrite -ler_mid (ltrW lt_ax) (ltrW lt_xb).
-have Hyx : (`|ratr y - x| <= ratr k').
+have Hyx : (`|ratr y - x| <= ratr k' :> T).
   have Hle0 : ratr (a + k' * n'%:R) - x <= 0.
     by rewrite /n'; case: arg_maxP => // i Pi _; rewrite subr_le0 -subr_ge0.
   rewrite (ler0_norm Hle0) opprB /n'; case: arg_maxP => // im Pim Him.
@@ -1977,7 +1951,7 @@ have Hyx : (`|ratr y - x| <= ratr k').
   rewrite -leqNgt ltnS leq_eqVlt leqNgt ltn_ord orbF => /eqP <-.
   apply/(ltr_trans lt_xb); rewrite ltr_rat -ltr_subl_addl -ltr_pdivr_mull //. 
   by rewrite mulrC gt_n.
-have Hqd := (Hk _ Hxm Hym); have le_k0: ratr k >= 0 :> R. 
+have Hqd := (Hk _ Hxm Hym); have le_k0: ratr k >= 0 :> T. 
   by rewrite ler0q; apply/cauchyreals.poly_accr_bound_ge0.
 have := (ler_trans Hqd (ler_pmul (normr_ge0 _) le_k0 Hyx (lerr _))).
 rewrite -rmorphM /k' divfK /=; last first.
@@ -1987,7 +1961,7 @@ move/(ltr_le_trans _); apply; rewrite subr_gt0 horner_map ltr_rat.
 by apply/lt_p; rewrite lt_ay lt_yb.
 Qed.
 
-Lemma to_RP (x : realalg) (a b : rat) (p : {poly rat}) (e : rat) :
+Lemma to_RP {T : numFieldType} (x : T) (a b : rat) (p : {poly rat}) (e : rat) :
   (ratr a <= x <= ratr b) -> (p.[a] <= 0 <= p.[b]) -> (root (map_poly ratr p) x) ->
        (e > 0) -> (forall y, a <= y <= b -> (p^`()).[y] > e)  ->
   {u : R | (ratr a <= u <= ratr b) && (root (map_poly ratr p) u)}.
@@ -2011,18 +1985,34 @@ exists u; apply/andP; split; last by apply/rootP/root_q.
 by have := u_in; rewrite inE => /andP[/ltrW -> /ltrW ->].
 Qed.
 
-(* Lemma approx_rat_inf (x : R) (a b : rat) : *)
-(*   ratr a < x -> x <= ratr b -> {y : rat | a < y & ratr y < x}. *)
-(* Proof. *)
-(* Admitted. *)
+Lemma Q_dense_archi {T : archiFieldType} (x y : T) :
+  x < y -> {q : rat | x < ratr q < y}.
+Proof.
+move=> lt_xy; pose e := y - x.
+have lt_e0 : 0 < e by rewrite subr_gt0.
+have lt_eI0 := (divr_ge0 ler01 (ltrW lt_e0)).
 
-(* Lemma approx_rat_sup (x : R) (a b : rat) : *)
-(*   ratr a <= x < ratr b -> {y : rat | y < b & x < ratr y}. *)
-(* Proof. *)
-(* Admitted. *)
+About archi_boundP.
+Print Canonical Projections.
+Check (ArchiRealField.archiNumDomainType T).
+About archi_boundP.
+have := (@archi_boundP (Num.ArchimedeanField.
+
+
+(ArchiRealField.archiNumDomainType T) (1 / e) lt_eI0).
+
+have := (archi_boundP lt_eI0); set n := bound _ => lt_n; have := lt_n.
+have lt_n0 := (ler_lt_trans lt_eI0 lt_n).
+rewrite (ltr_pdivr_mulr _ 1 lt_e0) mulrC -(ltr_pdivr_mulr _ _ lt_n0) => lt_e.
+have /floorC_itv/andP[] : x * n%:R \is Num.real by apply: num_real.
+set m := floorC _; rewrite -(ler_pdivr_mulr _ _ lt_n0) => le_rx.
+rewrite -(ltr_pdivl_mulr _ _ lt_n0) => lt_xr; pose r := (m + 1)%:Q / n%:Q.
+exists r; rewrite fmorph_div /= ratr_nat ratr_int lt_xr /= intrD mulrDl rmorph1.
+by rewrite -(addrNK x y) -/e addrC; apply/(ltr_le_add lt_e le_rx).
+Qed.
 
 (* closed intervals instead of open ones  :TODO: change in polyrcf *)
-Lemma deriv_sign_proper (a b : R) p :
+Lemma deriv_sign_proper {T : rcfType} (a b : T) p :
   (forall x, x \in `]a, b[ -> p^`().[x] >= 0)
   -> (forall x y, (x \in `[a, b]) && (y \in `[a, b])
     ->  x < y -> p.[x] <= p.[y] ).
@@ -2033,7 +2023,7 @@ move=> c hc ->; rewrite pmulr_lge0 ?subr_gt0 ?Pab //.
 by apply: subitvP hc; rewrite //= ?(itvP hx) ?(itvP hy).
 Qed.
   
-Lemma better_params (x : R) (p : {poly rat}) (u v : rat) :
+Lemma better_params {T : archiRcfType} (x : T) (p : {poly rat}) (u v : rat) :
   p != 0 -> ratr u <= x <= ratr v -> (root (map_poly ratr p) x) ->
   {a : rat & {b : rat & {e : rat & {q : {poly rat} | 
     [/\ (ratr a <= x <= ratr b), (q.[a] <= 0 <= q.[b]), (root (map_poly ratr q) x),
@@ -2075,7 +2065,7 @@ wlog : p / (map_poly ratr p)^`().[x] > 0 => [ihp | ].
     + by rewrite oppr_eq0.
     by rewrite rmorphN rootN.
   move=> root_p' p_sep p_n0 _ root_p.
-  have pm_sep : separable.separable_poly (map_poly ratr p : {poly R}). 
+  have pm_sep : separable.separable_poly (map_poly ratr p : {poly T}). 
     by rewrite separable.separable_map.
   by have := (coprimep_root pm_sep root_p); rewrite root_p' eq_refl.
 move=> p'_lt0 _; move: p'_lt0.
@@ -2102,58 +2092,91 @@ wlog: v / x < ratr v.
 wlog: u v / {e : rat | e > 0 & forall y : rat, u <= y <= v -> e < (p^`()).[y]}.
   move=> ihp lt_xv lt_ux lt_p'x p_n0 le_uxv root_p.
   have /andP[le_ux le_xv] := le_uxv.
-  have := le_uxv; rewrite ler_mid -rmorphD -rmorphB.
-  have H a : ratr a / 2%:R = ratr (a / 2%:R) :> R.
+  have [e /andP[lt_e0 lt_ep'x]] := Q_dense_archi lt_p'x.
+  have Hh a : ratr a / 2%:R = ratr (a / 2%:R) :> T.
     by rewrite fmorph_div /= ratr_nat.
-  move/(cauchyreals.poly_boundP (map_poly ratr p)^`()).
-  rewrite deriv_map !H /= poly_bound_rat ler_norml => /andP[_] ge_p'x {H}.
-  have := (@approx_rat_inf _ 0 _ _ ge_p'x); rewrite rmorph0 -{1}deriv_map.
-  move/(_ lt_p'x) => [e lt_e0 lt_ep'x].
-  have p'_n0 : (map_poly ratr p^`()) != 0 :> {poly R}.
+  have p'_n0 : (map_poly ratr p^`()) != 0 :> {poly T}.
     by apply/negP => /eqP H; have := lt_p'x; rewrite deriv_map H horner0 ltrr.
-  pose q := (map_poly ratr p^`() - (ratr e)%:P) : {poly R}.
+  pose q := (map_poly ratr p)^`() - (ratr e)%:P : {poly T}.
   have q_n0 : q != 0.
     rewrite /q; apply/negP=> /eqP /(congr1 (fun i => i.[x])).
     by rewrite !hornerE => H; have := lt_ep'x; rewrite -subr_gt0 H ltrr.
   have := (prev_root_lt lt_ux q_n0); set u' := prev_root _ _ _. 
-
-
-have le_uu_ : ratr u < u'.
-    have := (prev_root_in q (ratr u) x); rewrite inE => /andP[].
-
-  pose v' := next_root (map_poly ratr p^`() - (ratr e)%:P) x (ratr v).
-  
-
-
-Search _ next_root.
-Lemma sgr_neighplN p a x :
-~~ root p x -> {in neighpl p a x, forall y, (sgr p.[y] = sgr p.[x])}.
-prev_root_in: forall (R : rcfType) (p : {poly R}) (a b : R), prev_root p a b \in `[(Num.min a b), b]
-prev_root_lt: forall (R : rcfType) (p : {poly R}) (a b : R), a < b -> p != 0 -> prev_root p a b < b
- 
-Lemma approx_rat_inf (x : R) (a b : rat) :
-  ratr a < x -> x <= ratr b -> {y : rat | a < y & ratr y < x}.
-
-move=> [e lt_e0 He] _ p_n0 /andP[le_ux le_xv] root_p; have /rootP px := root_p.
+  move/Q_dense_archi => [a /andP[lt_u'a lt_ax]].
+  have := (next_root_gt lt_xv q_n0); set v' := next_root _ _ _.
+  move/Q_dense_archi => [b /andP[lt_xb lt_bv']].
+  apply: (ihp a b) => //; last by rewrite (ltrW lt_xb) (ltrW lt_ax).
+  exists e; first by have := lt_e0; rewrite ltr0q.
+  have nroot_pe : ~~ root q x.
+    by rewrite rootE !hornerE subr_eq0 eqr_le negb_and -ltrNge lt_ep'x.
+  have sgr_pn : Num.sg q.[x] = 1.
+    by apply/eqP; rewrite sgr_cp0 !hornerE subr_gt0 lt_ep'x.
+  move=> y /andP[le_ay le_yb].
+  case: (ltrgtP (ratr y) x) => [lt_yx | lt_xy | eq_yx].
+  + have lt_u'y: u' < ratr y by apply: (ltr_le_trans lt_u'a); rewrite ler_rat.
+    have := sgr_pn; rewrite -(@sgr_neighplN _ _ (ratr u) _ nroot_pe (ratr y)).
+    by move/eqP; rewrite sgr_cp0 !hornerE subr_gt0 deriv_map horner_map ltr_rat.
+    by rewrite /neighpl inE -/u' lt_u'y lt_yx.
+  + have lt_yv': ratr y < v' by apply: (ler_lt_trans _ lt_bv'); rewrite ler_rat.
+    move: nroot_pe; rewrite rootE => nroot_pe; have := sgr_pn.
+    rewrite -(@sgr_neighprN _ _ _ (ratr v) nroot_pe (ratr y)); last first.
+      by rewrite /neighpr inE -/v' lt_yv' lt_xy.
+    by move/eqP; rewrite sgr_cp0 !hornerE subr_gt0 deriv_map horner_map ltr_rat.
+  by have := lt_ep'x; rewrite -eq_yx deriv_map horner_map ltr_rat.
+move=> [e lt_e0 He] _ _ _ p_n0 /andP[le_ux le_xv] root_p; have /rootP px := root_p.
 exists u; exists v; exists e; exists p; split => //; rewrite ?le_ux ?le_xv //.
-have /deriv_sign_proper H0 : forall y : R, y \in `](ratr u),(ratr v)[ -> 
+have /deriv_sign_proper H0 : forall y : T, y \in `](ratr u),(ratr v)[ -> 
                         0 <= ((map_poly ratr p)^`()).[y]. 
   move=> y; rewrite inE => /andP[lt_uy lt_yv]; apply/ltrW; rewrite deriv_map.
   by apply/(map_poly_pos lt_e0 He); rewrite (ltrW lt_uy) (ltrW lt_yv).
 apply/andP; split.
   case: (boolP (x == ratr u)) => [/eqP eq_xu | neq_xu].
-    have: (map_poly ratr p).[ratr u] == 0 :> R by rewrite -eq_xu px.
+    have: (map_poly ratr p).[ratr u] == 0 :> T by rewrite -eq_xu px.
     by rewrite horner_map /= fmorph_eq0 => /eqP ->; rewrite lerr.
   have := (H0 (ratr u) x); rewrite px horner_map lerq0 => -> //=.
     by rewrite !inE lerr le_ux le_xv (ler_trans le_ux le_xv).
   by rewrite ltr_neqAle eq_sym le_ux neq_xu.
 case: (boolP (x == ratr v)) => [/eqP eq_xv | neq_xv].
-  have: (map_poly ratr p).[ratr v] == 0 :> R by rewrite -eq_xv px.
+  have: (map_poly ratr p).[ratr v] == 0 :> T by rewrite -eq_xv px.
   by rewrite horner_map /= fmorph_eq0 => /eqP ->; rewrite lerr.
 have := (H0 x (ratr v)); rewrite px horner_map ler0q => -> //=.
   by rewrite !inE lerr le_ux le_xv (ler_trans le_ux le_xv).
 by rewrite ltr_neqAle le_xv neq_xv.
 Qed.
+
+Lemma to_algdom_mid {F : archiFieldType} (x :
+
+Definition bla (x : realalg) := 
+  let y := to_algdom (repr x) in
+  let P := better_params 
+  sval (to_RP 
+  
+
+
+Lemma to_RP_correct {T : numFieldType} (x : T) a b p e 
+      (le_ab : ratr a <= x <= ratr b) (le_p0 : p.[a] <= 0 <= p.[b]) 
+      (root_p : root (map_poly ratr p) x) (le_e0 : e > 0)
+      (Hp' : forall y, a <= y <= b -> (p^`()).[y] > e) c d q f
+      (le_cd : ratr c <= x <= ratr d) 
+      (le_q0 : q.[c] <= 0 <= q.[d])
+      (root_q : root (map_poly ratr q) x) (le_f0 : f > 0) 
+      (Hq' : forall y, c <= y <= d -> (q^`()).[y] > f) :
+  tag (to_RP le_ab le_p0 root_p le_e0 Hp') =
+  tag (to_RP le_cd le_q0 root_q le_f0 Hq').
+Proof.
+have := tagged (to_RP le_ab le_p0 root_p le_e0 Hp'); set y := tag _.
+have := tagged (to_RP le_cd le_q0 root_q le_f0 Hq'); set z := tag _.
+move=> /andP[le_zcd root_qz] /andP[le_yab root_py].
+
+
+  {u : R | (ratr a <= u <= ratr b) && (root (map_poly ratr p) u)}.
+  {u : R | (ratr a <= u <= ratr b) && (root (map_poly ratr p) u)}.
+  p != 0 -> ratr u <= x <= ratr v -> (root (map_poly ratr p) x) ->
+  {a : rat & {b : rat & {e : rat & {q : {poly rat} | 
+    [/\ (ratr a <= x <= ratr b), (q.[a] <= 0 <= q.[b]), (root (map_poly ratr q) x),
+        (0 < e) & (forall y, a <= y <= b -> (q^`()).[y] > e)]}}}}.
+
+
 
 Definition bla (x : algdom) :=
 
