@@ -1,11 +1,89 @@
+(* (c) Copyright 2006-2017 Microsoft Corporation and Inria.                   *)
+(* Distributed under the terms of CeCILL-B.                                   *)
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import ssralg ssrnum.
-From mathcomp Require Import poly ssrint rat.
-From mathcomp Require Import generic_quotient polyrcf interval.
-From mathcomp Require Import realalg algC polyorder polydiv complex.
-(* From mathcomp Require Import complex mxpoly fieldext polyorder polydiv algC. *)
-(* From mathcomp Require Import matrix vector falgebra countalg. *)
+From mathcomp Require Import ssrint rat algC realalg poly complex.
+From mathcomp Require Import polyorder polydiv interval polyrcf.
 
+(******************************************************************************)
+(* This file defines structures for archimedean integral domains and fields   *)
+(* equipped with a partial order and a norm.                                  *)
+(*                                                                            *)
+(*    * ArchiNumDomain (archimedean NumDomain)                                *)
+(*  archiNumDomainType == interface for an archimedean num integral domain.   *)
+(* ArchiNumDomainType T a                                                     *)
+(*                     == packs the archimedean axiom a into an               *)
+(*                        archiNumDomainType. The carrier T must have a num   *)
+(*                        domain structure.                                   *)
+(* [archiNumDomainType of T for S ]                                           *)
+(*                     == T-clone of the archiNumDomainType structure of S.   *)
+(* [archiNumDomainType of T]                                                  *)
+(*                     == clone of a canonical archiNumDomainType structure   *)
+(*                        on T.                                               *)
+(*                                                                            *)
+(*    * ArchiNumField (archimedean NumField)                                  *)
+(*   archiNumFieldType == interface for an archimedean num field.             *)
+(* ArchiNumFieldType T a                                                      *)
+(*                     == packs the archimedean axiom a into an               *)
+(*                        archiNumFieldType. The carrier T must have a num    *)
+(*                        field structure.                                    *)
+(* [archiNumFieldType of T]                                                   *)
+(*                     == clone of a canonical archiNumFieldType structure    *)
+(*                        on T.                                               *)
+(*                                                                            *)
+(*    * ArchiNumClosedField (archimedean NumClosedField)                      *)
+(* archiNumClosedFieldType                                                    *)
+(*                     == interface for an archimedean num closed field.      *)
+(* ArchiNumClosedFieldType T a                                                *)
+(*                     == packs the archimedean axiom a into an               *)
+(*                        archiNumClosedFieldType. The carrier T must have a  *)
+(*                        num closed field structure.                         *)
+(* [archiNumClosedFieldType of T]                                             *)
+(*                     == clone of a canonical archiNumClosedFieldType        *)
+(*                        structure on T.                                     *)
+(*                                                                            *)
+(*    * ArchiRealDomain (archimedean RealDomain)                              *)
+(*  archiRealDomainType == interface for an archimedean real integral domain. *)
+(* ArchiRealDomainType T a                                                    *)
+(*                     == packs the archimedean axiom a into an               *)
+(*                        archiRealDomainType. The carrier T must have a real *)
+(*                        domain structure.                                   *)
+(* [archiRealDomainType of T]                                                 *)
+(*                     == clone of a canonical archiRealDomainType structure  *)
+(*                        on T.                                               *)
+(*                                                                            *)
+(*    * ArchiRealField (archimedean RealField)                                *)
+(*  archiRealFieldType == interface for an archimedean real field.            *)
+(* ArchiRealFieldType T a                                                     *)
+(*                     == packs the archimedean axiom a into an               *)
+(*                        archiRealFieldType. The carrier T must have a real  *)
+(*                        field structure.                                    *)
+(* [archiRealFieldType of T]                                                  *)
+(*                     == clone of a canonical archiRealFieldType structure   *)
+(*                        on T.                                               *)
+(*                                                                            *)
+(*    * ArchiNumClosedField (archimedean NumClosedField)                      *)
+(*        archiRcfType == interface for an archimedean num closed field.      *)
+(*    ArchiRcfType T a == packs the archimedean axiom a into an               *)
+(*                        archiNumClosedFieldType. The carrier T must have a  *)
+(*                        num closed field structure.                         *)
+(* [archiRcfType of T] == clone of a canonical archiNumClosedFieldType        *)
+(*                        structure on T.                                     *)
+(*                                                                            *)
+(* NumClosedField structures can be given a total order :                     *)
+(* x <=%C y ==                                                                *)
+(*                                                                            *)
+(*                                                                            *)
+(* Over these structures, we have the following operations :                  *)
+(*     Cnat == the subset of natural integers.                                *)
+(*     Cint == the subset of integers.                                        *)
+(* truncC z == for z >= 0, an n : nat s.t. n%:R <= z < n.+1%:R, else 0%N.     *)
+(* floorC z == for z \in Num.real, an m : int s.t. m%:~R <= z <= (m + 1)%:~R. *)
+(* These are explicitly instanciated for int (Znat), rat (Qnat, Qint) and     *)
+(* algC (Cnat, Cint).                                                         *)
+(*                                                                            *)
+(*                                                                            *)
+(******************************************************************************)
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -18,12 +96,13 @@ Module Archi.
 
 Local Notation num_for T b := (@Num.NumDomain.Pack T b T).
 
+(* Archimedean num structures *)
 Module ArchiNumDomain.
 
 Section ClassDef.
 
-Record class_of R :=
-  Class {base : Num.NumDomain.class_of R; _ : @Num.archimedean_axiom (num_for R base)}.
+Record class_of R := Class {base : Num.NumDomain.class_of R; 
+                            _ : @Num.archimedean_axiom (num_for R base)}.
 Local Coercion base : class_of >-> Num.NumDomain.class_of.
 
 Structure type := Pack {sort; _ : class_of sort; _ : Type}.
@@ -74,7 +153,8 @@ Canonical numDomainType.
 Notation archiNumDomainType := type.
 Notation ArchiNumDomainType T m := (@pack T _ m _ _ id _ id).
 Notation "[ 'archiNumDomainType' 'of' T 'for' cT ]" := (@clone T cT _ idfun)
-  (at level 0, format "[ 'archiNumDomainType'  'of'  T  'for'  cT ]") : form_scope.
+  (at level 0, format "[ 'archiNumDomainType'  'of'  T  'for'  cT ]") 
+                                                       : form_scope.
 Notation "[ 'archiNumDomainType' 'of' T ]" := (@clone T _ _ id)
   (at level 0, format "[ 'archiNumDomainType'  'of'  T ]") : form_scope.
 End Exports.
@@ -86,8 +166,8 @@ Module ArchiNumField.
 
 Section ClassDef.
 
-Record class_of R :=
-  Class { base : Num.NumField.class_of R; mixin : @Num.archimedean_axiom (num_for R base) }.
+Record class_of R := Class { base : Num.NumField.class_of R; 
+                             mixin : @Num.archimedean_axiom (num_for R base) }.
 Definition base2 R (c : class_of R) := ArchiNumDomain.Class (@mixin R c).
 Local Coercion base : class_of >-> Num.NumField.class_of.
 Local Coercion base2 : class_of >-> ArchiNumDomain.class_of.
@@ -115,7 +195,8 @@ Definition numDomainType := @Num.NumDomain.Pack cT xclass xT.
 Definition archiNumDomainType := @ArchiNumDomain.Pack cT xclass xT.
 Definition fieldType := @GRing.Field.Pack cT xclass xT.
 Definition numFieldType := @Num.NumField.Pack cT xclass xT.
-Definition join_archiNumDomainType := @ArchiNumDomain.Pack numFieldType xclass xT.
+Definition join_archiNumDomainType := 
+  @ArchiNumDomain.Pack numFieldType xclass xT.
 
 End ClassDef.
 
@@ -161,8 +242,8 @@ Module ArchiNumClosedField.
 
 Section ClassDef.
 
-Record class_of R :=
-  Class { base : Num.ClosedField.class_of R; mixin : @Num.archimedean_axiom (num_for R base) }.
+Record class_of R := Class { base : Num.ClosedField.class_of R; 
+                             mixin : @Num.archimedean_axiom (num_for R base) }.
 Definition base2 R (c : class_of R) := ArchiNumField.Class (@mixin R c).
 Local Coercion base : class_of >-> Num.ClosedField.class_of.
 Local Coercion base2 : class_of >-> ArchiNumField.class_of.
@@ -174,7 +255,8 @@ Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
 Let xT := let: Pack T _ _ := cT in T.
 Notation xclass := (class : class_of xT).
 Definition pack :=
-  fun bT b & phant_id (Num.ClosedField.class bT) (b : Num.ClosedField.class_of T) =>
+  fun bT b & phant_id (Num.ClosedField.class bT)
+                      (b : Num.ClosedField.class_of T) =>
   fun mT m & phant_id (ArchiNumDomain.class mT) (@ArchiNumDomain.Class T b m) =>
   Pack (@Class T b m) T.
 
@@ -239,12 +321,14 @@ End Exports.
 End ArchiNumClosedField.
 Import ArchiNumClosedField.Exports.
 
+
+(* Archimedean real structures *)
 Module ArchiRealDomain.
 
 Section ClassDef.
 
-Record class_of R :=
-  Class {base : Num.RealDomain.class_of R; mixin : @Num.archimedean_axiom (num_for R base)}.
+Record class_of R := Class {base : Num.RealDomain.class_of R; 
+                            mixin : @Num.archimedean_axiom (num_for R base)}.
 Definition base2 R (c : class_of R) := ArchiNumDomain.Class (@mixin R c).
 Local Coercion base : class_of >-> Num.RealDomain.class_of.
 Local Coercion base2 : class_of >-> ArchiNumDomain.class_of.
@@ -256,7 +340,8 @@ Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
 Let xT := let: Pack T _ _ := cT in T.
 Notation xclass := (class : class_of xT).
 Definition pack :=
-  fun bT b & phant_id (Num.RealDomain.class bT) (b : Num.RealDomain.class_of T) =>
+  fun bT b & phant_id (Num.RealDomain.class bT) (b : Num.RealDomain.class_of T) 
+    =>
   fun mT m & phant_id (ArchiNumDomain.class mT) (@ArchiNumDomain.Class T b m) =>
   Pack (@Class T b m) T.
 
@@ -271,7 +356,8 @@ Definition idomainType := @GRing.IntegralDomain.Pack cT xclass xT.
 Definition numDomainType := @Num.NumDomain.Pack cT xclass xT.
 Definition archiNumDomainType := @ArchiNumDomain.Pack cT xclass xT.
 Definition realDomainType := @Num.RealDomain.Pack cT xclass xT.
-Definition join_archiNumDomainType := @ArchiNumDomain.Pack realDomainType xclass xT.
+Definition join_archiNumDomainType :=
+  @ArchiNumDomain.Pack realDomainType xclass xT.
 
 End ClassDef.
 
@@ -315,11 +401,11 @@ Module ArchiRealField.
 
 Section ClassDef.
 
-Record class_of R :=
-  Class { base : Num.RealField.class_of R; mixin : @Num.archimedean_axiom (num_for R base) }.
+Record class_of R := Class { base : Num.RealField.class_of R; 
+                             mixin : @Num.archimedean_axiom (num_for R base) }.
 Definition base2 R (c : class_of R) := ArchiNumField.Class (@mixin R c).
 Local Coercion base : class_of >-> Num.RealField.class_of.
-Definition base3 R (c : class_of R) := @ArchiRealDomain.Class _ c (@mixin _ c). (* TODO : order *)
+Definition base3 R (c : class_of R) := @ArchiRealDomain.Class _ c (@mixin _ c). 
 Local Coercion base2 : class_of >-> ArchiNumField.class_of.
 Local Coercion base3 : class_of >-> ArchiRealDomain.class_of.
 Definition base4 R (c : class_of R) := 
@@ -354,7 +440,8 @@ Definition archiNumDomainType := @ArchiNumDomain.Pack cT xclass xT.
 Definition archiNumFieldType := @ArchiNumField.Pack cT xclass xT.
 Definition archiRealDomainType := @ArchiRealDomain.Pack cT xclass xT.
 Definition join_archiNumFieldType := @ArchiNumField.Pack numFieldType xclass xT.
-Definition join_archiRealDomainType := @ArchiRealDomain.Pack realDomainType xclass xT.
+Definition join_archiRealDomainType := 
+  @ArchiRealDomain.Pack realDomainType xclass xT.
 Definition archiFieldType := @Num.ArchimedeanField.Pack cT xclass xT.
 
 End ClassDef.
@@ -414,8 +501,8 @@ Module ArchiRealClosedField.
 
 Section ClassDef.
 
-Record class_of R :=
-  Class { base : Num.RealClosedField.class_of R; mixin : @Num.archimedean_axiom (num_for R base) }.
+Record class_of R := Class { base : Num.RealClosedField.class_of R; 
+                             mixin : @Num.archimedean_axiom (num_for R base) }.
 Definition base2 R (c : class_of R) := ArchiRealField.Class (@mixin R c).
 Local Coercion base : class_of >-> Num.RealClosedField.class_of.
 Local Coercion base2 : class_of >-> ArchiRealField.class_of.
@@ -427,7 +514,8 @@ Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
 Let xT := let: Pack T _ _ := cT in T.
 Notation xclass := (class : class_of xT).
 Definition pack :=
-  fun bT b & phant_id (Num.RealClosedField.class bT) (b : Num.RealClosedField.class_of T) =>
+  fun bT b & phant_id (Num.RealClosedField.class bT) 
+                      (b : Num.RealClosedField.class_of T) =>
   fun mT m & phant_id (ArchiNumDomain.class mT) (@ArchiNumDomain.Class T b m) =>
   Pack (@Class T b m) T.
 
@@ -501,12 +589,14 @@ End Exports.
 End ArchiRealClosedField.
 Import ArchiRealClosedField.Exports.
 
+
 Module Import Internals.
 
 Fact archi_bound_subproof (R : archiNumDomainType) : Num.archimedean_axiom R.
 Proof. by case: R => ? []. Qed.
 
 End Internals.
+
 
 Module Import ExtraDef.
 
@@ -516,19 +606,19 @@ End ExtraDef.
 
 Notation bound := archi_bound.
 
+
 Module Theory.
+
 
 Section ArchiNumTheory.
 
 Variables (R : archiNumDomainType) (x : R).
 
-Check x.
-Check (0 <= x).
-
 Lemma archi_boundP : 0 <= x -> x < (bound x)%:R.
 Proof. by move/ger0_norm=> {1}<-; rewrite /bound; case: (sigW _). Qed.
 
 End ArchiNumTheory.
+
 
 Section ArchiRealTheory.
 
@@ -543,14 +633,13 @@ Qed.
 
 End ArchiRealTheory.
 
+
 Section ArchiNumDomainTheory.
 
 Variable R : archiNumDomainType.
-Implicit Types x y z : R.
-Implicit Type nu : {rmorphism R -> R}.
+Implicit Types (x y z : R) (nu : {rmorphism R -> R}).
 
-(*    nat subset     *)
-
+(* nat subset *)
 Section CnatTheory.
 
 Implicit Types m n : nat.
@@ -709,8 +798,7 @@ Proof. by move=> _ /CnatP[n ->]; apply: rmorph_nat. Qed.
 
 End CnatTheory.
 
-(*     int subset      *)
-
+(* int subset *)
 Section CintTheory.
 
 Implicit Types m : int.
@@ -822,8 +910,7 @@ Proof. by move/Creal_Cint/real_normK. Qed.
 Lemma CintEsign x : x \is a Cint -> x = (-1) ^+ (x < 0)%R * `|x|.
 Proof. by move/Creal_Cint/realEsign. Qed.
 
-(* Relating Cint and Cnat. *)
-
+(* relation between Cint and Cnat. *)
 Lemma Cint_Cnat : {subset Cnat <= Cint}.
 Proof. by move=> _ /CnatP[n ->]; rewrite pmulrn Cint_int. Qed.
 
@@ -874,8 +961,7 @@ apply: ler_trans (_ : `|x| <= _); first by rewrite real_ler_norm ?Creal_Cint.
 by rewrite -Cint_normK // ler_eexpr // norm_Cint_ge1.
 Qed.
 
-(* Relating Cnat and oldCnat. *)
-
+(* relation between truncC and oldtruncC. *)
 Lemma truncC_old x : (truncC x = if (0 <= x) then `|floorC x|%N else 0%N).
 Proof.
 case: ifP => [x_ge0 | x_ge0F]; last by rewrite /truncC; apply: ifF.
@@ -952,8 +1038,8 @@ Export Archi.ArchiRealField.Exports Archi.ArchiRealClosedField.Exports.
 
 Import Theory.
 
-(* int is a archiRealDomain *)
 
+(* int is archimedean *)
 Module intArchimedean.
 Section intArchimedean.
 
@@ -972,7 +1058,7 @@ Section ZnatPred.
 
 Definition Znat := (@Cnat int_archiRealDomain).
 Fact Znat_key : pred_key Znat. by []. Qed.
-Canonical Znat_keyd := KeyedQualifier Znat_key.
+Canonical Znat_keyed := KeyedQualifier Znat_key.
 
 Lemma ZnatP (m : int) : reflect (exists n : nat, m = n) (m \is a Znat).
 Proof. 
@@ -988,11 +1074,14 @@ Canonical Znat_semiringPred := SemiringPred Znat_semiring_closed.
 Lemma Znat_def (m : int) : (m \is a Znat) = (0 <= m).
 Proof. by case: m => [m | //]; rewrite le0z_nat; apply/ZnatP; exists m. Qed.
 
+(* relation between Znat and oldZnat. *)
 Lemma Znat_old (m : int) : (m \is a Znat) = (m \is a ssrint.Znat).
 Proof. by apply/ZnatP/ssrint.ZnatP. Qed.
 
 End ZnatPred.
 
+
+(* rat is archimedean *)
 Canonical rat_archiNumDomain := 
   Eval hnf in ArchiNumDomainType rat rat_archimedean.
 Canonical rat_archiRealDomain :=
@@ -1001,7 +1090,6 @@ Canonical rat_archiNumField :=
   Eval hnf in [archiNumFieldType of rat].
 Canonical rat_archiRealField :=
   Eval hnf in [archiRealFieldType of rat].
-
 
 Section QintPred.
 
@@ -1028,6 +1116,7 @@ apply/QintP/idP => [[y ->] | /eqP H]; first by rewrite denq_int.
 by exists (numq x); rewrite numqE H mulr1.
 Qed.
 
+(* relation between Qint and oldQint. *)
 Lemma Qint_old (x : rat) : (x \is a Qint) = (x \is a rat.Qint).
 Proof. by apply/QintP/rat.QintP. Qed.
 
@@ -1048,6 +1137,7 @@ Proof. exact: CnatP. Qed.
 Lemma Qnat_def (x : rat) : (x \is a Qnat) = (x \is a Qint) && (0 <= x).
 Proof. exact: CnatEint. Qed.
 
+(* relation between Qnat and oldQnat. *)
 Lemma Qnat_old (x : rat) : (x \is a Qnat) = (x \is a rat.Qnat).
 Proof. by apply/QnatP/rat.QnatP. Qed.
 
@@ -1059,7 +1149,7 @@ Canonical Qnat_semiringPred := SemiringPred Qnat_semiring_closed.
 
 End QnatPred.
 
-(* TODO
+(* :TODO:
 Lemma Qint_dvdz (m d : int) : (d %| m)%Z -> ((m%:~R / d%:~R : rat) \is a Qint).
 
 Lemma Qnat_dvd (m d : nat) : (d %| m)%N → ((m%:R / d%:R : rat) \is a Qnat).
@@ -1067,6 +1157,7 @@ Lemma Qnat_dvd (m d : nat) : (d %| m)%N → ((m%:R / d%:R : rat) \is a Qnat).
 + locate other occurences
 *)
 
+(* algC is archimedean *)
 Module algCArchimedean.
 Section algCArchimedean.
 
@@ -1085,13 +1176,16 @@ Canonical algCarchiNumClosedFieldType := [archiNumClosedFieldType of algC].
 
 Section algCPred.
 
+(* relation between Cint and oldCint. *)
 Lemma Cint_old (x : algC) : (x \is a Cint) = (x \in Algebraics.Exports.Cint).
 Proof. by apply/CintP/algC.CintP. Qed.
 
+(* relation between Cnat and oldCnat. *)
 Lemma Cnat_old (x : algC) : (x \is a Cnat) = (x \in Algebraics.Exports.Cnat).
 Proof. by apply/CnatP/algC.CnatP. Qed.
 
 End algCPred.
+
 
 Section NCFComplements.
 
@@ -1099,21 +1193,30 @@ Variable R : numClosedFieldType.
 Implicit Types x y : R.
 
 (* complete order not compatible with all operations ! *)
-
-(* def of total order *)
-Definition letc x y :=
+Definition lec x y :=
     ('Re x < 'Re y) || (('Re x == 'Re y) && ('Im x <= 'Im y)).
 
-Definition lttc x y :=
-    (letc x y) && (x != y).
+Definition ltc x y :=
+    (lec x y) && (x != y).
 
-Lemma letcc : reflexive letc.
-Proof. by move=> x; rewrite /letc eq_refl lerr andbT orbT. Qed.
-Hint Resolve letcc.
+Notation "x <=%C y" := (lec x y) (at level 35) : ring_scope. 
+Notation "x <%C y" := (ltc x y) (at level 35) : ring_scope.
 
-Lemma letc_trans : transitive letc.
+Lemma lecE x y : 
+  (x <=%C y) = ('Re x < 'Re y) || (('Re x == 'Re y) && ('Im x <= 'Im y)).
+Proof. by rewrite /lec. Qed.
+
+Lemma ltcE x y :
+  (x <%C y) = (x <=%C y) && (x != y).
+Proof. by rewrite /ltc. Qed.
+
+Lemma lecc : reflexive lec.
+Proof. by move=> x; rewrite lecE eq_refl lerr andbT orbT. Qed.
+Hint Resolve lecc.
+
+Lemma lec_trans : transitive lec.
 Proof.
-move=> x y z; rewrite /letc => /orP[Ryx | /andP[/eqP <- Iyx]].
+move=> x y z; rewrite !lecE => /orP[Ryx | /andP[/eqP <- Iyx]].
   move=> /orP[Rxz | /andP[/eqP <- _]].
   + by apply/orP; left; apply: (ltr_trans Ryx Rxz).
   + by rewrite Ryx.
@@ -1122,9 +1225,9 @@ move=> /orP[Ryz | /andP[/eqP <- Ixz]].
 + by rewrite eq_refl (ler_trans Iyx Ixz) andbT orbT.
 Qed.
 
-Lemma letc_asym : antisymmetric letc.
+Lemma lec_asym : antisymmetric lec.
 Proof.
-move=> x y /andP[]; rewrite /letc => /orP[Rxy | /andP[/eqP Rxy Ixy /=]].
+move=> x y /andP[]; rewrite !lecE => /orP[Rxy | /andP[/eqP Rxy Ixy /=]].
   move=> /orP[ | /andP[]].
   + by rewrite ltr_gtF.
   by rewrite (gtr_eqF Rxy).
@@ -1134,21 +1237,20 @@ rewrite [x]Crect [y]Crect Rxy.
 by move: Iyx; rewrite ler_eqVlt (ler_gtF Ixy) orbF => /eqP ->.
 Qed.
 
-Lemma lttc_neqAle x y :
-  (lttc x y) = (x != y) && (letc x y).
-Proof. by rewrite /lttc andbC. Qed.
+Lemma ltc_neqAle x y :
+  (x <%C y) = (x != y) && (x <=%C y).
+Proof. by rewrite ltcE andbC. Qed.
 
-Lemma letc_eqVlt x y :
-  (letc x y) = (x == y) || (lttc x y).
+Lemma lec_eqVlt x y :
+  (x <=%C y) = (x == y) || (x <%C y).
 Proof.
-rewrite lttc_neqAle.
-case: (boolP (x == y)) => [/eqP -> | _ //=].
-by rewrite orTb letcc.
+rewrite ltc_neqAle.
+by case: (boolP (x == y)) => [/eqP -> | _ //=]; rewrite orTb lecc.
 Qed.
 
-Lemma lttcNge x y : lttc x y = ~~ (letc y x).
+Lemma ltcNge x y : x <%C y = ~~ (y <=%C x).
 Proof.
-rewrite /lttc /letc negb_or negb_and.
+rewrite ltcE lecE negb_or negb_and.
 case: (boolP (x == y)) => [/eqP -> | ]; first by rewrite eq_refl lerr /= !andbF.
 move=> x_neqy; rewrite /= andbT.
 rewrite -?real_ltrNge -?real_lerNgt ?Creal_Re ?Creal_Im ?ler_eqVlt //.
@@ -1158,200 +1260,206 @@ have [ | | eq_Im] //= := (real_ltrgtP (Creal_Im x) (Creal_Im y)).
 by move: x_neqy; rewrite x_rect y_rect eq_Re eq_Im eq_refl.
 Qed.
 
-Lemma letcNgt x y : letc x y = ~~ (lttc y x).
-Proof. by rewrite lttcNge negbK. Qed.
+Lemma lecNgt x y : x <=%C y = ~~ (y <%C x).
+Proof. by rewrite ltcNge negbK. Qed.
 
-Lemma lttcc x : lttc x x = false.
-Proof. by rewrite /lttc eq_refl /= andbF. Qed.
+Lemma ltcc x : x <%C x = false.
+Proof. by rewrite ltcE eq_refl /= andbF. Qed.
 
-Lemma lttc_trans : transitive lttc.
+Lemma ltc_trans : transitive ltc.
 Proof.
-move=> y x z; rewrite /lttc_neqAle => /andP [le_xy _].
-rewrite !lttcNge => /negP le_zy; apply/negP => le_zx.
-by apply: le_zy; apply: (letc_trans le_zx le_xy).
+move=> y x z; rewrite ltc_neqAle => /andP [_ le_xy].
+rewrite !ltcNge => /negP le_zy; apply/negP => le_zx.
+by apply: le_zy; apply: (lec_trans le_zx le_xy).
 Qed.
 
-Lemma neq_lttc x y :
-  (x != y) = (lttc x y) || (lttc y x).
+Lemma neq_ltc x y :
+  (x != y) = (x <%C y) || (y <%C x).
 Proof.
-rewrite !lttcNge -negb_and; congr (~~ _).
-apply/idP/idP => [/eqP -> | H_anti].
-  by rewrite andbb.
-by rewrite eq_sym; apply/eqP; apply: letc_asym.
+rewrite !ltcNge -negb_and; congr (~~ _).
+apply/idP/idP => [/eqP -> | H_anti]; first by rewrite andbb.
+by rewrite eq_sym; apply/eqP; apply: lec_asym.
 Qed.
 
-Lemma eqc_letc x y : (x == y) = (letc x y && letc y x).
-Proof. by apply/eqP/idP=> [->|/letc_asym]; rewrite ?letcc. Qed.
+Lemma eqc_le x y : (x == y) = (x <=%C y && y <=%C x).
+Proof. by apply/eqP/idP=> [->|/lec_asym]; rewrite ?lecc. Qed.
 
-Lemma letc_total : total letc.
-Proof. by move=> x y; rewrite letc_eqVlt lttcNge -orbA orNb orbT. Qed.
+Lemma lec_total : total lec.
+Proof. by move=> x y; rewrite lec_eqVlt ltcNge -orbA orNb orbT. Qed.
 
-Lemma lttc_le_trans y x z : lttc x y -> letc y z -> lttc x z.
+Lemma ltc_le_trans y x z : x <%C y -> y <=%C z -> x <%C z.
 Proof.
-move=> lt_xy; rewrite letc_eqVlt => /orP [/eqP <- // | ].
-by apply: lttc_trans.
+by move=> lt_xy; rewrite lec_eqVlt => /orP [/eqP <- // | ]; apply: ltc_trans.
 Qed.
 
-Lemma letc_lt_trans y x z : letc x y -> lttc y z -> lttc x z.
-Proof. by rewrite letc_eqVlt => /orP [/eqP <- // | ]; apply: lttc_trans. Qed.
+Lemma lec_lt_trans y x z : x <=%C y -> y <%C z -> x <%C z.
+Proof. by rewrite lec_eqVlt => /orP [/eqP <- // | ]; apply: ltc_trans. Qed.
 
-Lemma lttc_eqF x y : lttc x y -> (x == y) = false.
-Proof. by rewrite /lttc => /andP[ _ ] /negbTE. Qed.
+Lemma ltc_eqF x y : x <%C y -> (x == y) = false.
+Proof. by rewrite ltcE => /andP[ _ ] /negbTE. Qed.
 
 
 (* Monotony of addition *)
-Lemma letc_add2l x : {mono +%R x : y z / letc y z}.
+Lemma lec_add2l x : {mono +%R x : y z / y <=%C z}.
 Proof.
-move=> y z; rewrite /letc !raddfD /= ltr_add2l ler_add2l. 
+move=> y z; rewrite lecE !raddfD /= ltr_add2l ler_add2l. 
 by rewrite -subr_eq0 opprD addrAC addNKr addrC subr_eq0.
 Qed.
 
-Lemma letc_add2r x : {mono +%R^~ x : y z / letc y z}.
-Proof. by move=> y z /=; rewrite ![_ + x]addrC letc_add2l. Qed.
+Lemma lec_add2r x : {mono +%R^~ x : y z / y <=%C z}.
+Proof. by move=> y z /=; rewrite ![_ + x]addrC lec_add2l. Qed.
 
-Lemma mono_inj f : {mono f : x y / letc x y} -> injective f.
-Proof. by move=> mf x y /eqP; rewrite eqc_letc !mf -eqc_letc=> /eqP. Qed.
+Lemma mono_injc f : {mono f : x y / x <=%C y} -> injective f.
+Proof. by move=> mf x y /eqP; rewrite eqc_le !mf -eqc_le => /eqP. Qed.
 
-Lemma letcW_mono f : {mono f : x y / letc x y} -> {mono f : x y / lttc x y}.
-Proof. by move=> mf x y; rewrite !lttc_neqAle mf (inj_eq (mono_inj mf)). Qed.
+Lemma lecW_mono f : {mono f : x y / x <=%C y} -> {mono f : x y / x <%C y}.
+Proof. by move=> mf x y; rewrite !ltc_neqAle mf (inj_eq (mono_injc mf)). Qed.
 
-Lemma letcW_mono_Cto (R' : eqType) (f : R -> R') (g : rel R') :
+Lemma lecW_mono_to (R' : eqType) (f : R -> R') (g : rel R') :
   injective f ->
-  {mono f : x y / letc x y >-> g x y} -> 
-  {mono f : x y / lttc x y >-> (x != y) && g x y}.
-Proof. by move=> inj_f mf x y /=; rewrite lttc_neqAle mf (inj_eq inj_f). Qed.
+  {mono f : x y / x <=%C y >-> g x y} -> 
+  {mono f : x y / x <%C y >-> (x != y) && g x y}.
+Proof. by move=> inj_f mf x y /=; rewrite ltc_neqAle mf (inj_eq inj_f). Qed.
 
-Lemma lttc_add2r z x y : lttc (x + z) (y + z) = lttc x y.
-Proof. by rewrite (letcW_mono (letc_add2r _)). Qed.
+Lemma ltc_add2r z x y : (x + z) <%C (y + z) = x <%C y.
+Proof. by rewrite (lecW_mono (lec_add2r _)). Qed.
 
-Lemma lttc_add2l z x y : lttc (z + x) (z + y) = lttc x y.
-Proof. by rewrite (letcW_mono (letc_add2l _)). Qed.
+Lemma ltc_add2l z x y : (z + x) <%C (z + y) = x <%C y.
+Proof. by rewrite (lecW_mono (lec_add2l _)). Qed.
 
-Lemma letc_add x y z t : letc x y -> letc z t -> letc (x + z) (y + t).
+Lemma lec_add x y z t : x <=%C y -> z <=%C t -> (x + z) <=%C (y + t).
 Proof. 
-by move=> lxy lzt; rewrite (@letc_trans (y + z)) ?letc_add2l ?letc_add2r. 
+by move=> lxy lzt; rewrite (@lec_trans (y + z)) ?lec_add2l ?lec_add2r. 
 Qed.
 
-Lemma lttc_add x y z t : lttc x y -> lttc z t -> lttc (x + z) (y + t).
+Lemma ltc_add x y z t : x <%C y -> z <%C t -> (x + z) <%C (y + t).
 Proof. 
-by move=> lxy lzt; rewrite (@lttc_trans (y + z)) ?lttc_add2l ?lttc_add2r. 
+by move=> lxy lzt; rewrite (@ltc_trans (y + z)) ?ltc_add2l ?ltc_add2r. 
 Qed.
 
-Lemma letc_sum (I : Type) (r : seq I) (P : pred I) (F G : I -> R) :
-  (forall i : I, P i -> letc (F i) (G i)) -> 
-  letc (\sum_(i <- r | P i) F i) (\sum_(i <- r | P i) G i).
-Proof. by exact: (big_ind2 _ (letcc _) letc_add). Qed.
+Lemma lec_sum (I : Type) (r : seq I) (P : pred I) (F G : I -> R) :
+  (forall i : I, P i -> (F i) <=%C (G i)) -> 
+  (\sum_(i <- r | P i) F i) <=%C (\sum_(i <- r | P i) G i).
+Proof. by exact: (big_ind2 _ (lecc _) lec_add). Qed.
 
-(* changer l'énoncé pour la size *)
-Lemma lttc_sum (I : Type) (r : seq I) (F G : I -> R) :
-  (0 < size r)%N -> (forall i : I, lttc (F i) (G i)) -> 
-  lttc (\sum_(i <- r) F i) (\sum_(i <- r) G i).
+Lemma ltc_sum (I : Type) (r : seq I) (F G : I -> R) :
+  (0 < size r)%N -> (forall i : I, (F i) <%C (G i)) -> 
+  (\sum_(i <- r) F i) <%C (\sum_(i <- r) G i).
 Proof.
 case: r => [// | x r _ Hi]; rewrite big_cons big_cons.
-apply: (@lttc_le_trans (G x + \sum_(j <- r) F j)); first by rewrite lttc_add2r.
-by rewrite letc_add2l; apply: letc_sum => i _; rewrite letc_eqVlt Hi orbT.
+apply: (@ltc_le_trans (G x + \sum_(j <- r) F j)); first by rewrite ltc_add2r.
+by rewrite lec_add2l; apply: lec_sum => i _; rewrite lec_eqVlt Hi orbT.
 Qed.
 
-(* letc_iff *)
-Definition letcif x y (C : bool) : Prop :=
-    ((letc x y) * ((x == y) = C))%type.
+(* lec_iff *)
+Definition lecif x y (C : bool) : Prop :=
+    ((x <=%C y) * ((x == y) = C))%type.
 
-Definition letc_of_leif x y C (le_xy : letcif x y C) := le_xy.1 : letc x y.
-Coercion letc_of_leif : letcif >-> is_true.
+Definition lec_of_leif x y C (le_xy : lecif x y C) := le_xy.1 : x <=%C y.
+Coercion lec_of_leif : lecif >-> is_true.
 
-Lemma letcifP x y C : reflect (letcif x y C) (if C then x == y else lttc x y).
+Lemma lecifP x y C : reflect (lecif x y C) (if C then x == y else x <%C y).
 Proof.
-rewrite /letcif letc_eqVlt; apply: (iffP idP)=> [|[]].
-  by case: C => [/eqP->|lxy]; rewrite ?eqxx // lxy lttc_eqF.
-by move=> /orP[/eqP->|lxy] <-; rewrite ?eqxx // lttc_eqF.
+rewrite /lecif lec_eqVlt; apply: (iffP idP)=> [|[]].
+  by case: C => [/eqP->|lxy]; rewrite ?eqxx // lxy ltc_eqF.
+by move=> /orP[/eqP->|lxy] <-; rewrite ?eqxx // ltc_eqF.
 Qed.
 
-Lemma letcif_refl x C : reflect (letcif x x C) C.
+Lemma lecif_refl x C : reflect (lecif x x C) C.
 Proof. by apply: (iffP idP) => [-> | <-] //; split; rewrite ?eqxx. Qed.
 
-Lemma letcif_trans x1 x2 x3 C12 C23 :
-  letcif x1 x2 C12 -> letcif x2 x3 C23 -> letcif x1 x3 (C12 && C23).
+Lemma lecif_trans x1 x2 x3 C12 C23 :
+  lecif x1 x2 C12 -> lecif x2 x3 C23 -> lecif x1 x3 (C12 && C23).
 Proof.
-move=> ltx12 ltx23; apply/letcifP; rewrite -ltx12.
+move=> ltx12 ltx23; apply/lecifP; rewrite -ltx12.
 case eqx12: (x1 == x2).
-  by rewrite (eqP eqx12) lttc_neqAle !ltx23 andbT; case C23.
-by rewrite (@lttc_le_trans x2) ?ltx23 // lttc_neqAle eqx12 ltx12.
+  by rewrite (eqP eqx12) ltc_neqAle !ltx23 andbT; case C23.
+by rewrite (@ltc_le_trans x2) ?ltx23 // ltc_neqAle eqx12 ltx12.
 Qed.
 
-Lemma letcif_le x y : letc x y -> letcif x y (letc y x).
-Proof. by move=> lexy; split=> //; rewrite eqc_letc lexy. Qed.
+Lemma lecif_le x y : x <=%C y -> lecif x y (y <=%C x).
+Proof. by move=> lexy; split=> //; rewrite eqc_le lexy. Qed.
 
-Lemma letcif_eq x y : letc x y -> letcif x y (x == y).
+Lemma lecif_eq x y : x <=%C y -> lecif x y (x == y).
 Proof. by []. Qed.
 
-Lemma getc_letcif x y C : letcif x y C -> letc y x = C.
-Proof. by case=> le_xy; rewrite eqc_letc le_xy. Qed.
+Lemma gec_lecif x y C : lecif x y C -> y <=%C x = C.
+Proof. by case=> le_xy; rewrite eqc_le le_xy. Qed.
 
-Lemma lttc_letcif x y C : letcif x y C -> (lttc x y) = ~~ C.
-Proof. by move=> le_xy; rewrite lttc_neqAle !le_xy andbT. Qed.
+Lemma ltc_lecif x y C : lecif x y C -> (x <%C y) = ~~ C.
+Proof. by move=> le_xy; rewrite ltc_neqAle !le_xy andbT. Qed.
 
-Lemma mono_letcif (f : R -> R) C :
-    {mono f : x y / letc x y} ->
-  forall x y, (letcif (f x) (f y) C) = (letcif x y C).
-Proof. by move=> mf x y; rewrite /letcif mf (inj_eq (mono_inj _)). Qed.
+Lemma mono_lecif (f : R -> R) C :
+    {mono f : x y / x <=%C y} ->
+  forall x y, (lecif (f x) (f y) C) = (lecif x y C).
+Proof. by move=> mf x y; rewrite /lecif mf (inj_eq (mono_injc _)). Qed.
 
-Lemma letcif_add x1 y1 C1 x2 y2 C2 :
-    letcif x1 y1 C1 -> letcif x2 y2 C2 ->
-  letcif (x1 + x2) (y1 + y2) (C1 && C2).
+Lemma lecif_add x1 y1 C1 x2 y2 C2 :
+    lecif x1 y1 C1 -> lecif x2 y2 C2 ->
+  lecif (x1 + x2) (y1 + y2) (C1 && C2).
 Proof.
-rewrite -(mono_letcif _ (letc_add2r x2)) -(mono_letcif C2 (letc_add2l y1)).
-exact: letcif_trans.
+rewrite -(mono_lecif _ (lec_add2r x2)) -(mono_lecif C2 (lec_add2l y1)).
+exact: lecif_trans.
 Qed.
 
-Lemma letcif_sum (I : finType) (P C : pred I) (E1 E2 : I -> R) :
-    (forall i, P i -> letcif (E1 i) (E2 i) (C i)) ->
-  letcif (\sum_(i | P i) E1 i) (\sum_(i | P i) E2 i) [forall (i | P i), C i].
+Lemma lecif_sum (I : finType) (P C : pred I) (E1 E2 : I -> R) :
+    (forall i, P i -> lecif (E1 i) (E2 i) (C i)) ->
+  lecif (\sum_(i | P i) E1 i) (\sum_(i | P i) E2 i) [forall (i | P i), C i].
 Proof.
 move=> leE12; rewrite -big_andE.
-elim/big_rec3: _ => [|i Ci m2 m1 /leE12]; first by rewrite /letcif letcc eqxx.
-exact: letcif_add.
+elim/big_rec3: _ => [|i Ci m2 m1 /leE12]; first by rewrite /lecif lecc eqxx.
+exact: lecif_add.
 Qed.
 
 
 (* max *)
-Definition maxc x y := if (letc x y) then y else x.
+Definition maxc x y := if (x <=%C y) then y else x.
 
 Lemma maxcA : associative maxc.
 Proof.
 move=> a b c; rewrite /maxc.
-case: (boolP (letc b c)) => [Hbc | /negbTE Hbc].
-  case: (boolP (letc a b)) => [Hab | //].
-  by rewrite Hbc (letc_trans Hab Hbc).
-case: (boolP (letc a b)) => [Hab | ]; first by rewrite Hbc.  
-rewrite -lttcNge => Hab; apply/eqP; rewrite eq_sym; apply/eqP.
-apply: ifF; apply/negbTE; rewrite -lttcNge.
-by apply: (lttc_trans _ Hab); rewrite lttcNge Hbc.
+case: (boolP (b <=%C c)) => [Hbc | /negbTE Hbc].
+  case: (boolP (a <=%C b)) => [Hab | //].
+  by rewrite Hbc (lec_trans Hab Hbc).
+case: (boolP (a <=%C b)) => [Hab | ]; first by rewrite Hbc.  
+rewrite -ltcNge => Hab; apply/eqP; rewrite eq_sym; apply/eqP.
+apply: ifF; apply/negbTE; rewrite -ltcNge.
+by apply: (ltc_trans _ Hab); rewrite ltcNge Hbc.
 Qed.
 
 Lemma maxc_addl : left_distributive +%R maxc.
-Proof. by move=> x y z; rewrite /maxc /= letc_add2r; case: ifP => _. Qed.
+Proof. by move=> x y z; rewrite /maxc /= lec_add2r; case: ifP => _. Qed.
 
 Lemma maxc_addr : right_distributive +%R maxc.
 Proof. by move=> x y z; rewrite ![x + _]addrC maxc_addl. Qed.
 
 Lemma maxcc x : maxc x x = x.
-Proof. by rewrite /maxc letcc. Qed.
+Proof. by rewrite /maxc lecc. Qed.
 
 Lemma maxcC : commutative maxc.
 Proof.
-move=> x y; rewrite /maxc; case: (boolP (letc x y)).
-  rewrite letc_eqVlt => /orP [/eqP -> | ]; first by rewrite letcc.
-  by rewrite lttcNge => /negbTE ->.
-by rewrite -lttcNge lttc_neqAle => /andP[_ ->].
+move=> x y; rewrite /maxc; case: (boolP (x <=%C y)).
+  rewrite lec_eqVlt => /orP [/eqP -> | ]; first by rewrite lecc.
+  by rewrite ltcNge => /negbTE ->.
+by rewrite -ltcNge ltc_neqAle => /andP[_ ->].
 Qed.
 
-Lemma maxcl x y : letc x (maxc x y).
-Proof. by rewrite /maxc; case: (boolP (letc x y)). Qed.
+Lemma maxcl x y : x <=%C (maxc x y).
+Proof. by rewrite /maxc; case: (boolP (x <=%C y)). Qed.
 
-Lemma maxcr x y : letc y (maxc x y).
+Lemma maxcr x y : y <=%C (maxc x y).
 Proof. by rewrite maxcC maxcl. Qed.
 
+CoInductive maxc_spec x y : bool -> bool -> R -> Type :=
+| Maxc_l of x <=%C y : maxc_spec x y true false y
+| Maxc_r of y <%C x : maxc_spec x y false true x.
 
+Lemma maxcP x y : maxc_spec x y (x <=%C y) (y <%C x) (maxc x y).
+Proof.
+case: lecP.
+
+Print maxr_spec.
+maxrP : forall (R : realDomainType) (x y : R), maxr_spec x y (y <= x) (x < y) (Num.max x y)
 
 (*       sequence of the roots of a polynomial     *)
 Definition sroots (P : {poly R}) := if P == 0 then [::] 
@@ -2767,3 +2875,9 @@ Canonical from_aCR_rmorphism := RMorphism from_aCR_is_rmorphism.
 
 
 End Algr.
+
+End Archi.
+
+Export Archi.ArchiNumDomain.Exports Archi.ArchiNumField.Exports.
+Export Archi.ArchiNumClosedField.Exports Archi.ArchiRealDomain.Exports.
+Export Archi.ArchiRealField.Exports Archi.ArchiRealClosedField.Exports.
