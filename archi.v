@@ -5,6 +5,7 @@ From mathcomp Require Import ssralg ssrnum.
 From mathcomp Require Import ssrint rat algC realalg poly complex.
 From mathcomp Require Import polyorder polydiv interval polyrcf.
 
+
 (******************************************************************************)
 (* This file defines structures for archimedean integral domains and fields   *)
 (* equipped with a partial order and a norm.                                  *)
@@ -1030,6 +1031,29 @@ Lemma conj_Cint x : x \is a Cint -> x^* = x.
 Proof. by move/Creal_Cint/conj_Creal. Qed.
 
 End ArchiNumClosedFieldTheory.
+
+Section ArchiRealFieldTheory.
+
+Variable R : archiRealFieldType.
+
+Lemma rat_dense (x y : R) :
+  x < y -> {q : rat | x < ratr q < y}.
+Proof.
+move=> lt_xy; pose e := y - x.
+have lt_e0 : 0 < e :> R by rewrite subr_gt0.
+have lt_eI0 := (divr_ge0 ler01 (ltrW lt_e0)).
+have := (archi_boundP lt_eI0); set n := bound _ => lt_n; have := lt_n.
+have lt_n0 : 0 < n%:R :> R by apply: (ler_lt_trans lt_eI0 lt_n).
+rewrite (ltr_pdivr_mulr _ 1 lt_e0) mulrC -(ltr_pdivr_mulr _ _ lt_n0) => lt_e.
+have /floorC_itv/andP[] : x * n%:R \is Num.real by apply: num_real.
+set m := floorC _; rewrite -(ler_pdivr_mulr _ _ lt_n0) => le_rx.
+rewrite -(ltr_pdivl_mulr _ _ lt_n0) => lt_xr; pose r := (m + 1)%:Q / n%:Q.
+exists r; rewrite fmorph_div /= ratr_nat ratr_int lt_xr /= intrD mulrDl rmorph1.
+by rewrite -(addrNK x y) -/e addrC; apply/(ltr_le_add lt_e le_rx).
+Qed.
+
+End ArchiRealFieldTheory.
+
 End Theory.
 
 Export Archi.ArchiNumDomain.Exports Archi.ArchiNumField.Exports.
@@ -1238,438 +1262,6 @@ Canonical complexalg_archiNumFieldType := [archiNumFieldType of complexalg].
 Canonical complexalg_archiNumClosedFieldType := 
   [archiNumClosedFieldType of complexalg].
 
-(* (* complements on numClosedField *) *)
-(* Section NCFComplements. *)
-
-(* Variable R : numClosedFieldType. *)
-(* Implicit Types x y : R. *)
-
-(* (* complete order not compatible with all operations ! *) *)
-(* Definition lec x y := *)
-(*     ('Re x < 'Re y) || (('Re x == 'Re y) && ('Im x <= 'Im y)). *)
-
-(* Definition ltc x y := *)
-(*     (lec x y) && (x != y). *)
-
-(* Notation "x <=%C y" := (lec x y) (at level 35) : ring_scope.  *)
-(* Notation "x <%C y" := (ltc x y) (at level 35) : ring_scope. *)
-
-(* Lemma lecE x y :  *)
-(*   (x <=%C y) = ('Re x < 'Re y) || (('Re x == 'Re y) && ('Im x <= 'Im y)). *)
-(* Proof. by rewrite /lec. Qed. *)
-
-(* Lemma ltcE x y : *)
-(*   (x <%C y) = (x <=%C y) && (x != y). *)
-(* Proof. by rewrite /ltc. Qed. *)
-
-(* Lemma lecc : reflexive lec. *)
-(* Proof. by move=> x; rewrite lecE eq_refl lerr andbT orbT. Qed. *)
-(* Hint Resolve lecc. *)
-
-(* Lemma lec_trans : transitive lec. *)
-(* Proof. *)
-(* move=> x y z; rewrite !lecE => /orP[Ryx | /andP[/eqP <- Iyx]]. *)
-(*   move=> /orP[Rxz | /andP[/eqP <- _]]. *)
-(*   + by apply/orP; left; apply: (ltr_trans Ryx Rxz). *)
-(*   + by rewrite Ryx. *)
-(* move=> /orP[Ryz | /andP[/eqP <- Ixz]]. *)
-(* + by rewrite Ryz. *)
-(* + by rewrite eq_refl (ler_trans Iyx Ixz) andbT orbT. *)
-(* Qed. *)
-
-(* Lemma lec_asym : antisymmetric lec. *)
-(* Proof. *)
-(* move=> x y /andP[]; rewrite !lecE => /orP[Rxy | /andP[/eqP Rxy Ixy /=]]. *)
-(*   move=> /orP[ | /andP[]]. *)
-(*   + by rewrite ltr_gtF. *)
-(*   by rewrite (gtr_eqF Rxy). *)
-(* move=> /orP[ | /andP[/eqP Ryx Iyx]]. *)
-(* + by rewrite Rxy ltrr. *)
-(* rewrite [x]Crect [y]Crect Rxy. *)
-(* by move: Iyx; rewrite ler_eqVlt (ler_gtF Ixy) orbF => /eqP ->. *)
-(* Qed. *)
-
-(* Lemma ltc_neqAle x y : *)
-(*   (x <%C y) = (x != y) && (x <=%C y). *)
-(* Proof. by rewrite ltcE andbC. Qed. *)
-
-(* Lemma lec_eqVlt x y : *)
-(*   (x <=%C y) = (x == y) || (x <%C y). *)
-(* Proof. *)
-(* rewrite ltc_neqAle. *)
-(* by case: (boolP (x == y)) => [/eqP -> | _ //=]; rewrite orTb lecc. *)
-(* Qed. *)
-
-(* Lemma ltcNge x y : x <%C y = ~~ (y <=%C x). *)
-(* Proof. *)
-(* rewrite ltcE lecE negb_or negb_and. *)
-(* case: (boolP (x == y)) => [/eqP -> | ]; first by rewrite eq_refl lerr /= !andbF. *)
-(* move=> x_neqy; rewrite /= andbT. *)
-(* rewrite -?real_ltrNge -?real_lerNgt ?Creal_Re ?Creal_Im ?ler_eqVlt //. *)
-(* have x_rect := (Crect x); have y_rect := (Crect y). *)
-(* have [ | | eq_Re] //= := (real_ltrgtP (Creal_Re x) (Creal_Re y)). *)
-(* have [ | | eq_Im] //= := (real_ltrgtP (Creal_Im x) (Creal_Im y)). *)
-(* by move: x_neqy; rewrite x_rect y_rect eq_Re eq_Im eq_refl. *)
-(* Qed. *)
-
-(* Lemma lecNgt x y : x <=%C y = ~~ (y <%C x). *)
-(* Proof. by rewrite ltcNge negbK. Qed. *)
-
-(* Lemma ltcc x : x <%C x = false. *)
-(* Proof. by rewrite ltcE eq_refl /= andbF. Qed. *)
-
-(* Lemma ltc_trans : transitive ltc. *)
-(* Proof. *)
-(* move=> y x z; rewrite ltc_neqAle => /andP [_ le_xy]. *)
-(* rewrite !ltcNge => /negP le_zy; apply/negP => le_zx. *)
-(* by apply: le_zy; apply: (lec_trans le_zx le_xy). *)
-(* Qed. *)
-
-(* Lemma neq_ltc x y : *)
-(*   (x != y) = (x <%C y) || (y <%C x). *)
-(* Proof. *)
-(* rewrite !ltcNge -negb_and; congr (~~ _). *)
-(* apply/idP/idP => [/eqP -> | H_anti]; first by rewrite andbb. *)
-(* by rewrite eq_sym; apply/eqP; apply: lec_asym. *)
-(* Qed. *)
-
-(* Lemma eqc_le x y : (x == y) = (x <=%C y && y <=%C x). *)
-(* Proof. by apply/eqP/idP=> [->|/lec_asym]; rewrite ?lecc. Qed. *)
-
-(* Lemma lec_total : total lec. *)
-(* Proof. by move=> x y; rewrite lec_eqVlt ltcNge -orbA orNb orbT. Qed. *)
-
-(* Lemma ltc_le_trans y x z : x <%C y -> y <=%C z -> x <%C z. *)
-(* Proof. *)
-(* by move=> lt_xy; rewrite lec_eqVlt => /orP [/eqP <- // | ]; apply: ltc_trans. *)
-(* Qed. *)
-
-(* Lemma lec_lt_trans y x z : x <=%C y -> y <%C z -> x <%C z. *)
-(* Proof. by rewrite lec_eqVlt => /orP [/eqP <- // | ]; apply: ltc_trans. Qed. *)
-
-(* Lemma ltc_eqF x y : x <%C y -> (x == y) = false. *)
-(* Proof. by rewrite ltcE => /andP[ _ ] /negbTE. Qed. *)
-
-(* Lemma ltcW x y : x <%C y -> x <=%C y. *)
-(* Proof. by rewrite ltcE => /andP[-> _]. Qed. *)
-
-(* CoInductive comparec x y : bool -> bool -> bool -> bool -> bool -> bool -> Set:= *)
-(* | ComparecLt : x <%C y -> comparec x y false false true false true false *)
-(* | ComparecGt : y <%C x -> comparec x y false false false true false true *)
-(* | ComparecEq : x = y -> comparec x y true true true true false false. *)
-
-(* CoInductive ltc_xor_ge x y : bool -> bool -> Set := *)
-(* | LtcNotGe : x <%C y -> ltc_xor_ge x y false true *)
-(* | GecNotLt : y <=%C x -> ltc_xor_ge x y true false. *)
-
-(* CoInductive lec_xor_gt x y : bool -> bool -> Set := *)
-(* | LecNotGt : x <=%C y -> lec_xor_gt x y true false *)
-(* | GtcNotLe : y <%C x -> lec_xor_gt x y false true. *)
-
-(* Lemma ltcgtP x y : *)
-(*   comparec x y (x == y) (y == x) (x <=%C y) (y <=%C x) (x <%C y) (y <%C x). *)
-(* Proof. *)
-(* case: (boolP (_ <%C _)) => [ltxy | nltxy]. *)
-(*   have H := (ltc_eqF ltxy); rewrite H; move: H; rewrite eq_sym => ->. *)
-(*   rewrite ltcE; have := ltxy; rewrite ltcNge => /negbTE -> /=. *)
-(*   by rewrite (ltcW ltxy); constructor. *)
-(* rewrite lec_eqVlt (negbTE nltxy). *)
-(* move: nltxy; rewrite -lecNgt => lexy; rewrite ltcE lexy orbF /=. *)
-(* case: (boolP (_ == _)) => [/eqP eq_xy|]. *)
-(*   by rewrite eq_xy eq_refl /=; constructor. *)
-(* rewrite eq_sym => neq_xy; rewrite (negbTE neq_xy) /=. *)
-(* by constructor; rewrite ltcE lexy neq_xy. *)
-(* Qed. *)
-
-(* Lemma lecP x y : lec_xor_gt x y (x <=%C y) (y <%C x). *)
-(* Proof. by case: ltcgtP => [/ltcW lexy | ltyx | ->]; constructor => //. Qed. *)
-
-(* Lemma ltcP x y : ltc_xor_ge x y (y <=%C x) (x <%C y). *)
-(* Proof. by case: ltcgtP => [/ltcW lexy | ltyx | ->]; constructor => //. Qed. *)
-
-
-(* (* Monotony of addition *) *)
-(* Lemma lec_add2l x : {mono +%R x : y z / y <=%C z}. *)
-(* Proof. *)
-(* move=> y z; rewrite lecE !raddfD /= ltr_add2l ler_add2l.  *)
-(* by rewrite -subr_eq0 opprD addrAC addNKr addrC subr_eq0. *)
-(* Qed. *)
-
-(* Lemma lec_add2r x : {mono +%R^~ x : y z / y <=%C z}. *)
-(* Proof. by move=> y z /=; rewrite ![_ + x]addrC lec_add2l. Qed. *)
-
-(* Lemma mono_injc f : {mono f : x y / x <=%C y} -> injective f. *)
-(* Proof. by move=> mf x y /eqP; rewrite eqc_le !mf -eqc_le => /eqP. Qed. *)
-
-(* Lemma lecW_mono f : {mono f : x y / x <=%C y} -> {mono f : x y / x <%C y}. *)
-(* Proof. by move=> mf x y; rewrite !ltc_neqAle mf (inj_eq (mono_injc mf)). Qed. *)
-
-(* Lemma lecW_mono_to (R' : eqType) (f : R -> R') (g : rel R') : *)
-(*   injective f -> *)
-(*   {mono f : x y / x <=%C y >-> g x y} ->  *)
-(*   {mono f : x y / x <%C y >-> (x != y) && g x y}. *)
-(* Proof. by move=> inj_f mf x y /=; rewrite ltc_neqAle mf (inj_eq inj_f). Qed. *)
-
-(* Lemma ltc_add2r z x y : (x + z) <%C (y + z) = x <%C y. *)
-(* Proof. by rewrite (lecW_mono (lec_add2r _)). Qed. *)
-
-(* Lemma ltc_add2l z x y : (z + x) <%C (z + y) = x <%C y. *)
-(* Proof. by rewrite (lecW_mono (lec_add2l _)). Qed. *)
-
-(* Lemma lec_add x y z t : x <=%C y -> z <=%C t -> (x + z) <=%C (y + t). *)
-(* Proof.  *)
-(* by move=> lxy lzt; rewrite (@lec_trans (y + z)) ?lec_add2l ?lec_add2r.  *)
-(* Qed. *)
-
-(* Lemma ltc_add x y z t : x <%C y -> z <%C t -> (x + z) <%C (y + t). *)
-(* Proof.  *)
-(* by move=> lxy lzt; rewrite (@ltc_trans (y + z)) ?ltc_add2l ?ltc_add2r.  *)
-(* Qed. *)
-
-(* Lemma lec_sum (I : Type) (r : seq I) (P : pred I) (F G : I -> R) : *)
-(*   (forall i : I, P i -> (F i) <=%C (G i)) ->  *)
-(*   (\sum_(i <- r | P i) F i) <=%C (\sum_(i <- r | P i) G i). *)
-(* Proof. by exact: (big_ind2 _ (lecc _) lec_add). Qed. *)
-
-(* Lemma ltc_sum (I : Type) (r : seq I) (F G : I -> R) : *)
-(*   (0 < size r)%N -> (forall i : I, (F i) <%C (G i)) ->  *)
-(*   (\sum_(i <- r) F i) <%C (\sum_(i <- r) G i). *)
-(* Proof. *)
-(* case: r => [// | x r _ Hi]; rewrite big_cons big_cons. *)
-(* apply: (@ltc_le_trans (G x + \sum_(j <- r) F j)); first by rewrite ltc_add2r. *)
-(* by rewrite lec_add2l; apply: lec_sum => i _; rewrite lec_eqVlt Hi orbT. *)
-(* Qed. *)
-
-(* (* lec_iff *) *)
-(* Definition lecif x y (C : bool) : Prop := *)
-(*     ((x <=%C y) * ((x == y) = C))%type. *)
-
-(* Definition lec_of_leif x y C (le_xy : lecif x y C) := le_xy.1 : x <=%C y. *)
-(* Coercion lec_of_leif : lecif >-> is_true. *)
-
-(* Lemma lecifP x y C : reflect (lecif x y C) (if C then x == y else x <%C y). *)
-(* Proof. *)
-(* rewrite /lecif lec_eqVlt; apply: (iffP idP)=> [|[]]. *)
-(*   by case: C => [/eqP->|lxy]; rewrite ?eqxx // lxy ltc_eqF. *)
-(* by move=> /orP[/eqP->|lxy] <-; rewrite ?eqxx // ltc_eqF. *)
-(* Qed. *)
-
-(* Lemma lecif_refl x C : reflect (lecif x x C) C. *)
-(* Proof. by apply: (iffP idP) => [-> | <-] //; split; rewrite ?eqxx. Qed. *)
-
-(* Lemma lecif_trans x1 x2 x3 C12 C23 : *)
-(*   lecif x1 x2 C12 -> lecif x2 x3 C23 -> lecif x1 x3 (C12 && C23). *)
-(* Proof. *)
-(* move=> ltx12 ltx23; apply/lecifP; rewrite -ltx12. *)
-(* case eqx12: (x1 == x2). *)
-(*   by rewrite (eqP eqx12) ltc_neqAle !ltx23 andbT; case C23. *)
-(* by rewrite (@ltc_le_trans x2) ?ltx23 // ltc_neqAle eqx12 ltx12. *)
-(* Qed. *)
-
-(* Lemma lecif_le x y : x <=%C y -> lecif x y (y <=%C x). *)
-(* Proof. by move=> lexy; split=> //; rewrite eqc_le lexy. Qed. *)
-
-(* Lemma lecif_eq x y : x <=%C y -> lecif x y (x == y). *)
-(* Proof. by []. Qed. *)
-
-(* Lemma gec_lecif x y C : lecif x y C -> y <=%C x = C. *)
-(* Proof. by case=> le_xy; rewrite eqc_le le_xy. Qed. *)
-
-(* Lemma ltc_lecif x y C : lecif x y C -> (x <%C y) = ~~ C. *)
-(* Proof. by move=> le_xy; rewrite ltc_neqAle !le_xy andbT. Qed. *)
-
-(* Lemma mono_lecif (f : R -> R) C : *)
-(*     {mono f : x y / x <=%C y} -> *)
-(*   forall x y, (lecif (f x) (f y) C) = (lecif x y C). *)
-(* Proof. by move=> mf x y; rewrite /lecif mf (inj_eq (mono_injc _)). Qed. *)
-
-(* Lemma lecif_add x1 y1 C1 x2 y2 C2 : *)
-(*     lecif x1 y1 C1 -> lecif x2 y2 C2 -> *)
-(*   lecif (x1 + x2) (y1 + y2) (C1 && C2). *)
-(* Proof. *)
-(* rewrite -(mono_lecif _ (lec_add2r x2)) -(mono_lecif C2 (lec_add2l y1)). *)
-(* exact: lecif_trans. *)
-(* Qed. *)
-
-(* Lemma lecif_sum (I : finType) (P C : pred I) (E1 E2 : I -> R) : *)
-(*     (forall i, P i -> lecif (E1 i) (E2 i) (C i)) -> *)
-(*   lecif (\sum_(i | P i) E1 i) (\sum_(i | P i) E2 i) [forall (i | P i), C i]. *)
-(* Proof. *)
-(* move=> leE12; rewrite -big_andE. *)
-(* elim/big_rec3: _ => [|i Ci m2 m1 /leE12]; first by rewrite /lecif lecc eqxx. *)
-(* exact: lecif_add. *)
-(* Qed. *)
-
-
-(* (* max *) *)
-(* Definition maxc x y := if (x <=%C y) then y else x. *)
-
-(* CoInductive maxc_spec x y : bool -> bool -> R -> Set := *)
-(* | Maxc_l of x <=%C y : maxc_spec x y true false y *)
-(* | Maxc_r of y <%C x : maxc_spec x y false true x. *)
-
-(* Lemma maxcP x y : maxc_spec x y (x <=%C y) (y <%C x) (maxc x y). *)
-(* Proof. by rewrite /maxc; case: lecP => H; constructor. Qed. *)
-
-(* Lemma maxcA : associative maxc. *)
-(* Proof. *)
-(* move=> a b c; case: (maxcP b c); case: (maxcP a b) => //. *)
-(* + by move=> leab lebc; rewrite /maxc (lec_trans leab lebc) lebc. *)
-(* + by case: maxcP. *)
-(* by move=> ltba ltcb; rewrite /maxc lecNgt (ltc_trans ltcb ltba). *)
-(* Qed. *)
-
-(* Lemma maxc_addl : left_distributive +%R maxc. *)
-(* Proof. by move=> x y z; rewrite /maxc /= lec_add2r; case: ifP => _. Qed. *)
-
-(* Lemma maxc_addr : right_distributive +%R maxc. *)
-(* Proof. by move=> x y z; rewrite ![x + _]addrC maxc_addl. Qed. *)
-
-(* Lemma maxcc x : maxc x x = x. *)
-(* Proof. by rewrite /maxc lecc. Qed. *)
-
-(* Lemma maxcC : commutative maxc. *)
-(* Proof. by move=> x y; rewrite /maxc; case: (ltcgtP x y). Qed. *)
-
-(* Lemma maxcl x y : x <=%C (maxc x y). *)
-(* Proof. by case: maxcP. Qed. *)
-
-(* Lemma maxcr x y : y <=%C (maxc x y). *)
-(* Proof. by case: maxcP=> // /ltcW. Qed. *)
-
-(* (* ordered sequence of the roots of a polynomial *) *)
-(* Definition Croots (P : {poly R}) :=  *)
-(*   if P == 0  *)
-(*   then [::]  *)
-(*   else sort lec (sval (closed_field_poly_normal P)). *)
-
-(* Lemma Croots0 : Croots 0 = [::]. *)
-(* Proof. by rewrite /Croots eq_refl. Qed. *)
-
-(* Lemma Croots_sorted P : sorted lec (Croots P). *)
-(* Proof. by rewrite /Croots; case: ifP => // _; apply/sort_sorted/lec_total. Qed. *)
-
-(* Lemma Croots_perm P :  *)
-(*   P != 0 -> perm_eq (Croots P) (sval (closed_field_poly_normal P)). *)
-(* Proof. by rewrite /Croots => /negbTE ->; apply/perm_eqlP/perm_sort. Qed. *)
-
-(* Lemma Croots_poly P : P = lead_coef P *: \prod_(x <- (Croots P)) ('X - x%:P).  *)
-(* Proof. *)
-(* case: (boolP (P == 0)) => [/eqP -> | /negbTE P_neq0]. *)
-(*   by rewrite lead_coef0 scale0r. *)
-(* rewrite {1}(svalP(closed_field_poly_normal P)); congr (_ *: _). *)
-(* by apply/esym/eq_big_perm/Croots_perm; rewrite P_neq0. *)
-(* Qed. *)
-
-(* Lemma CrootsP P (P_neq0 : P != 0) x : reflect (root P x) (x \in Croots P). *)
-(* Proof. *)
-(* rewrite (perm_eq_mem (Croots_perm P_neq0)). *)
-(* have lead_coef_neq0 : lead_coef P != 0; first by rewrite lead_coef_eq0. *)
-(* move: P_neq0 (svalP(closed_field_poly_normal P)) => /negbTE P_neq0 {1}->. *)
-(* by rewrite (rootZ _ _ lead_coef_neq0) root_prod_XsubC; apply: (iffP idP). *)
-(* Qed. *)
-
-(* Lemma Croots_neq0 P : (P != 0) -> (0 \in (Croots P)) = (P`_0 == 0). *)
-(* Proof. *)
-(* move=> P_neq0; apply/(CrootsP P_neq0)/eqP. *)
-(*   by move/rootP; rewrite horner_coef0 => ->. *)
-(* by move=> H; apply/rootP; rewrite horner_coef0. *)
-(* Qed. *)
-
-(* Lemma Croots_mu P x : (count_mem x) (Croots P) = \mu_x P. *)
-(* Proof. *)
-(* case: (boolP (P == 0)) =>  [/eqP P_eq0 | P_neq0]. *)
-(*   by rewrite P_eq0 Croots0 mu0; apply/count_memPn; rewrite in_nil. *)
-(* case: (boolP (root P x)) => [x_root | x_not_root]; last first. *)
-(*   by rewrite (muNroot x_not_root); apply/count_memPn/(CrootsP P_neq0)/negP. *)
-(* have Hx : x \in Croots P ++ sval (closed_field_poly_normal P). *)
-(*   by have /CrootsP := x_root; move=> /(_ P_neq0); rewrite mem_cat => ->. *)
-(* have /allP/(_ x Hx)/eqP -> := Croots_perm P_neq0. *)
-(* rewrite [in RHS](svalP (closed_field_poly_normal P)) mu_mulC ?lead_coef_eq0 //. *)
-(* move: (sval _); elim => [/=|y s ihs /=]; first by rewrite big_nil mu_polyC. *)
-(* rewrite big_cons mu_mul -?ihs; last first. *)
-(*   by rewrite mulf_neq0 ?polyXsubC_eq0 -?size_poly_eq0 ?size_prod_XsubC. *)
-(* case: (boolP (y == x)) => [/eqP -> | y_neqx /=]; first by rewrite mu_XsubC. *)
-(* by rewrite muNroot // root_XsubC eq_sym y_neqx. *)
-(* Qed.   *)
-
-(* Lemma Croots_size P : size (Croots P) = if (P == 0) then 0%N else (size P).-1. *)
-(* Proof. *)
-(* case: (boolP (P == 0)) => [/eqP ->| P_neq0]; first by rewrite Croots0. *)
-(* move: (svalP (closed_field_poly_normal P)) => H; rewrite [in RHS]H. *)
-(* rewrite (perm_eq_size (Croots_perm P_neq0)) size_scale ?lead_coef_eq0 //. *)
-(* by rewrite size_prod_XsubC. *)
-(* Qed. *)
-
-(* Lemma Croots_polyC c : Croots c%:P = [::]. *)
-(* Proof. *)
-(* apply: size0nil; rewrite Croots_size. *)
-(* case: (boolP (c == 0)) => [/eqP ->|/negbTE c_neq0] /=; first by rewrite eq_refl. *)
-(* by rewrite polyC_eq0 c_neq0 size_polyC; move/negbT: c_neq0 => -> /=. *)
-(* Qed. *)
-
-(* Lemma CrootsM P Q : P * Q != 0 -> *)
-(*   perm_eq (Croots (P * Q)) ((Croots P) ++ (Croots Q)). *)
-(* Proof. *)
-(* by move => PQ_neq0; apply/allP => x _; rewrite /= count_cat !Croots_mu mu_mul. *)
-(* Qed. *)
-
-(* Lemma CrootsZ P c : c != 0 -> Croots (c *: P) = Croots P. *)
-(* Proof. *)
-(* case: (boolP (P == 0)) => [/eqP -> | P_neq0 c_neq0]; first by rewrite scaler0. *)
-(* apply/(eq_sorted lec_trans lec_asym); rewrite ?Croots_sorted // -mul_polyC. *)
-(* apply/(perm_eq_trans (CrootsM _)); rewrite ?Croots_polyC //. *)
-(* by rewrite mulf_neq0 ?polyC_eq0. *)
-(* Qed. *)
-
-(* Lemma Croots_prod (I : Type) P (r : seq I) : all [pred i | P i != 0] r -> *)
-(*   perm_eq (Croots (\prod_(i <- r) P i)) (flatten [seq Croots (P i) | i <- r]). *)
-(* Proof. *)
-(* elim: r => [_ | j r Ihr /= /andP[Pj_neq0 Hall_neq0]]; last rewrite big_cons. *)
-(*   by rewrite big_nil /= (_ : 1 = 1%:P :> {poly R}) // Croots_polyC. *)
-(* apply/(perm_eq_trans (CrootsM _)); last by rewrite perm_cat2l Ihr. *)
-(* by apply/mulf_neq0; rewrite ?Pj_neq0 ?prodf_seq_neq0. *)
-(* Qed. *)
-
-(* Lemma Croots_XsubC c : Croots ('X - c%:P) = [:: c]. *)
-(* Proof. *)
-(* apply/perm_eq_small => //; apply/uniq_perm_eq => //; last first. *)
-(*   move=> y; rewrite inE; have H: 'X - c%:P != 0 by rewrite polyXsubC_eq0. *)
-(*   by apply/(CrootsP H)/eqP => [| -> ]; rewrite root_XsubC // => /eqP ->. *)
-(* have := Croots_size ('X - c%:P); rewrite polyXsubC_eq0 size_XsubC /=. *)
-(* by case: (Croots ('X - c%:P)) => //= a l /eqP; rewrite eqSS => /eqP/size0nil ->. *)
-(* Qed. *)
-
-(* Lemma Croots_prod_XsubC rs : *)
-(*   perm_eq (Croots (\prod_(x <- rs) ('X - x%:P))) rs. *)
-(* Proof. *)
-(* apply/(perm_eq_trans (Croots_prod _) _).  *)
-(*   by apply/allP => x /=; rewrite polyXsubC_eq0. *)
-(* by rewrite (eq_map Croots_XsubC); elim: rs => //= x rs H /=; rewrite perm_cons. *)
-(* Qed. *)
-
-(* Lemma Croots_separable P : *)
-(*   separable.separable_poly P -> uniq (Croots P). *)
-(* Proof. *)
-(* case: (boolP (P == 0)) => [/eqP -> _ | P_neq0]; first by rewrite Croots0. *)
-(* rewrite [X in separable.separable_poly X]Croots_poly /separable.separable_poly. *)
-(* rewrite derivZ coprimep_scalel ?coprimep_scaler ?lead_coef_eq0 //. *)
-(* by rewrite -separable.separable_prod_XsubC. *)
-(* Qed. *)
-
-(* Lemma Croots_eqp P Q : *)
-(*   P %= Q -> Croots P = Croots Q. *)
-(* Proof. *)
-(* case: (boolP (P == 0)) => [/eqP -> | P_neq0 P_eqp_Q]. *)
-(*   by rewrite eqp_sym eqp0 => /eqP ->. *)
-(* have Q_neq0 : Q != 0. *)
-(*   by apply/(contraNneq _ P_neq0) => Q_eq0; move: P_eqp_Q; rewrite Q_eq0 eqp0. *)
-(* by move/eqpf_eq : P_eqp_Q => [l /= l_neq0 ->]; apply: CrootsZ. *)
-(* Qed. *)
-
-(* End NCFComplements. *)
-
-(* Arguments lec [R]. *)
 
 
 Module NormType.
@@ -1750,8 +1342,6 @@ Proof. exact: val_inj. Qed.
 
 Lemma nval_is_rmorphism : rmorphism (@nval T).
 Proof. by []. Qed.
-
-(* TODO généraliser à n'importe quelle fonction f vérifiant les bonnes hyp *)
 
 Program Definition normT_LeMixin := (@RealLeMixin _ 
   (fun x y => (@nval T x) <= (nval y)) (fun x y => (nval x) < (nval y)) 
@@ -1850,7 +1440,7 @@ Canonical normT_of_archiRealFieldType (T : archiNumClosedFieldType) :=
 
 Section NormRcfType.
 
-Variable T : archiNumClosedFieldType.
+Variable T : numClosedFieldType.
 
 Lemma dec_factor_theorem_normT (p : {poly (normT T)}) :
   {s : seq (normT T) & {q : {poly (normT T)} | 
@@ -1946,42 +1536,33 @@ have [_]:= (irredp_poly_re x_nre); move/(_ _ Hsize Hdiv)/eqp_size.
 by rewrite size_XsubC size_poly_re.
 Qed.
 
+Lemma poly2_nroot (u v : normT T) :
+  'X^2 - (u%:P *+ 2) * 'X + v%:P = ('X - u%:P)^+2 + (v - u^+2)%:P.
+Proof.
+
+by rewrite sqrrB mulrnAl mulrC polyC_sub polyC_exp [RHS]addrCA addrK -addrC.
+Qed.
+
 Lemma poly_re_gt0 (x : T) (y : normT T) :
   x \isn't Num.real -> (poly_re x).[y] > 0.
 Proof.
-move=> x_nre; pose v := NormT (conjM_real x).
-pose u := (NormT (conjD_real x)) / 2%:R.
-pose z := sqrtC (nval (u^+2 - v)); have : z > 0.
+move=> x_nre; rewrite /poly_re; set u := NormT _; set v := NormT _.
+have Hre : (poly_re x) = ('X - (u / 2%:R) %:P)^+2 + (v - (u / 2%:R)^+2)%:P.
+  rewrite /poly_re -poly2_nroot; congr (_ - _ * _ + _).
+  by rewrite -polyC_muln; congr (_%:P); rewrite -mulr_natr mulfVK // pnatr_eq0.
+rewrite -[X in 0 < X.[y]]/(poly_re x) Hre hornerD horner_exp -[0]addr0.
+apply: (ler_lt_add (sqr_ge0 _)); rewrite !hornerE ltrNge; apply/negP.
+set w := _ - _; rewrite -oppr_ge0 => H.
+have sqw : sqrtC (nval (- w)) \is Num.real.
+  by rewrite realE sqrtC_ge0; apply/orP; left.
+have /negP := (poly_re_nroot x_nre (NormT sqw + (u /2%:R))); apply.
+rewrite rootE Hre hornerD horner_exp hornerD hornerN hornerX !hornerC -/w.
+by rewrite addr_eq0 addrK -(inj_eq (@nval_inj T)) rmorphX sqrtCK.
+Qed.
 
-
-
-suff Heq : poly_re x = ('X - u%:P)^+2 + (v - u^+2)%:P.
-  have : (v - u^+2) > 0.
-    apply: contraT; rewrite -lerNgt => H.
-    have := (poly_re_nroot x_nre (Num.sqrt (u^+2 - v) + u)).
-
-Search _ "contra".
-
-
-Search _ irreducible_poly root.
-
-  move=> P2_irr; rewrite -eq_P2.
-  have H y : ~~ (root (P2 u v) y).
-    have [P2_size HP2] := P2_irr; apply/negP; rewrite -dvdp_XsubCl => Hdiv.
-    have /HP2 H: (size ('X - y%:P)%R != 1)%N by rewrite size_XsubC.
-    by have /H := Hdiv; rewrite -(dvdp_size_eqp Hdiv) size_XsubC size_P2.
-  suff : (v - (u / 2%:R) ^+ 2) > 0.
-    by rewrite -[X in _ -> X < _]addr0; apply: ler_lt_add; rewrite sqr_ge0.
-  rewrite ltrNge -oppr_ge0; apply/negP; move Heq: (- (v - _)) => y.
-  case: y Heq => [y y_re] Heq Hy; pose z := sqrtC y.
-  have : 0 <= y by []; rewrite -sqrtC_ge0 -/z => Hz.
-  have /negP := (H (NormT (ger0_real Hz) - (u / 2%:R))); apply; apply/rootP.
-  rewrite -eq_P2 addrNK /=; apply/(nval_inj); rewrite rmorphD rmorphX.  
-  by rewrite sqrtCK -[y]/(nval (NormT y_re)) -rmorphD -Heq addrC subrr.
-
-
-
-
+Lemma poly_re_sg (x : T) (y : normT T) :
+  x \isn't Num.real -> Num.sg (poly_re x).[y] = 1.
+Proof. by move=> x_nre; apply/gtr0_sg/poly_re_gt0/x_nre. Qed.
 
 Lemma root_factor_theorem_normT (x : T) (p : {poly (normT T)}) :
   x \isn't Num.real -> root (map_poly (@nval T) p) x = (poly_re x %| p).
@@ -1994,11 +1575,11 @@ have H : conjC \o (@nval T) =1 (@nval T) by case=> i /= /CrealP.
 by have := root_conjC rootx; rewrite -(map_poly_comp conjC) (eq_map_poly H).
 Qed.
 
-
 Lemma decomp_roots_poly (p : {poly (normT T)}) :
   {l_re : seq (normT T) & {l_im : seq T | 
     p = lead_coef p *: (\prod_(i <- l_re) ('X - i%:P) * 
-                        \prod_(i <- l_im) (poly_re i))}}.
+                        \prod_(i <- l_im) (poly_re i)) & 
+    all (fun x => x \isn't Num.real) l_im}}.
 Proof.
 case: (boolP (p == 0)) => [/eqP -> | p_neq0].
   by exists [::]; exists [::]; rewrite //= lead_coef0 scale0r.
@@ -2025,112 +1606,81 @@ have x_nre : x \isn't Num.real.
   apply/negP => x_re; have /negP := qnroot (NormT x_re); apply.
   by rewrite -(fmorph_root (@nval_rmorphism T)).
 have := rootx; rewrite (root_factor_theorem_normT _ x_nre) => Hdiv.
-have [|y||l_im Heq] := (ihn (q %/ poly_re x)).
+have [|y||l_im Heq Him] := (ihn (q %/ poly_re x)).
 + by rewrite (dvdp_div_eq0 Hdiv) q_n0.
 + apply/negP; rewrite root_factor_theorem => H1; have H2 := divp_dvd Hdiv.
   by have := dvdp_trans H1 H2; rewrite -root_factor_theorem; apply/negP/qnroot.
   by rewrite size_divp ?poly_re_neq0 // size_poly_re leq_subLR add2n size_qeq.
-exists (x :: l_im); rewrite -(divpK Hdiv) mulrAC Heq mulrC big_cons.
-rewrite [in RHS]mulrCA [in RHS]scalerAr.
+exists (x :: l_im); last by rewrite /= Him x_nre.
+rewrite -(divpK Hdiv) mulrAC Heq mulrC big_cons [in RHS]mulrCA [in RHS]scalerAr.
 congr (_ * (_ *: _)); set a := lead_coef _.
 rewrite lead_coef_monicM ?monic_poly_re // lead_coefZ (monicP _) ?mulr1 //.
 by rewrite rpredM ?rpred_prod // => i _; rewrite ?monicXsubC ?monic_poly_re.
 Qed.
 
+Lemma sgr_mono (R : realDomainType) (x y : R) : Num.sg x < Num.sg y -> x < y.
+Proof.
+case: sgrP => [-> | gtx0 | ltx0]; first by rewrite sgr_gt0.
+  case: sgrP => _; rewrite ?ltr10 ?ltrr //.
+  by rewrite -subr_lt0 opprK (_ : 1 + 1 = 2%:R) ?ltrn0.
+by case: sgrP => [-> _ // | /(ltr_trans ltx0) _ // | _]; rewrite ltrr.
+Qed.
 
 Lemma normT_real_closed : Num.real_closed_axiom (normT_numFieldType T).
 Proof.
-move=> f a b le_ab /andP[].
-case: (boolP (root f a)) => [a_root _ _ | /negbTE a_nroot].
-  by exists a => //; rewrite lerr le_ab.
-rewrite ler_eqVlt -rootE a_nroot orFb => fa.
-case: (boolP (root f b)) => [b_root _ | /negbTE b_nroot].
-  by exists b => //; rewrite lerr le_ab.
-rewrite ler_eqVlt eq_sym -rootE b_nroot orFb => fb.
-(* R(i) alge closed -> f split en irreducible factor de deg 1 ou 2 *)
-have [l_re [l_im eq_f irr_f]] := decomp_roots_poly f.
-have root_l_re x : x \in l_re -> root f x.
-  by move=> x_in; rewrite eq_f -mul_polyC !rootM root_prod_XsubC x_in /= orbT.
-pose P2 (u v : normT) := ('X^2 + u *: 'X + v%:P).
-have eq_P2 u v x : (x + u / 2%:R) ^+ 2 + (v - (u / 2%:R) ^+ 2) = (P2 u v).[x].
-  rewrite /P2 !hornerD hornerXn hornerZ hornerX hornerC.
-  rewrite sqrrD addrCA addrK addrC -mulr_natr mulrA mulfVK ?[u * x]mulrC //.
-  by rewrite pnatr_eq0.
-have size_P2 u v : size (P2 u v) = 3.
-  rewrite /P2 -addrA size_addl ?size_polyXn //.
-  apply/(leq_ltn_trans (size_add _ _) _); rewrite gtn_max size_polyC.
-  suff: (size (u *: 'X) < 3)%N by case: (v != 0) => /=; rewrite andbT.
-  by apply/(leq_ltn_trans (size_scale_leq _ _) _); rewrite size_polyX.
-(* si p irred de degré 2 : p = x^2 + ax + b, et donc 4b > a donc p ne change pas de signe *)
-have P2_pos u v x : irreducible_poly (P2 u v) -> (P2 u v).[x] > 0.
-  move=> P2_irr; rewrite -eq_P2.
-  have H y : ~~ (root (P2 u v) y).
-    have [P2_size HP2] := P2_irr; apply/negP; rewrite -dvdp_XsubCl => Hdiv.
-    have /HP2 H: (size ('X - y%:P)%R != 1)%N by rewrite size_XsubC.
-    by have /H := Hdiv; rewrite -(dvdp_size_eqp Hdiv) size_XsubC size_P2.
-  suff : (v - (u / 2%:R) ^+ 2) > 0.
-    by rewrite -[X in _ -> X < _]addr0; apply: ler_lt_add; rewrite sqr_ge0.
-  rewrite ltrNge -oppr_ge0; apply/negP; move Heq: (- (v - _)) => y.
-  case: y Heq => [y y_re] Heq Hy; pose z := sqrtC y.
-  have : 0 <= y by []; rewrite -sqrtC_ge0 -/z => Hz.
-  have /negP := (H (NormT (ger0_real Hz) - (u / 2%:R))); apply; apply/rootP.
-  rewrite -eq_P2 addrNK /=; apply/(nval_inj); rewrite rmorphD rmorphX.  
-  by rewrite sqrtCK -[y]/(nval (NormT y_re)) -rmorphD -Heq addrC subrr.
+move=> f a b le_ab /andP[]; rewrite ler_eqVlt => /orP[ | /ltr0_sg sg_fa].
+  by rewrite -rootE => aroot _; exists a; rewrite ?lerr ?le_ab ?aroot.
+rewrite ler_eqVlt => /orP[ | /gtr0_sg sg_fb].
+  by rewrite eq_sym -rootE => broot; exists b; rewrite ?lerr ?le_ab ?broot.
+have [l_re [l_im eq_f /allP is_im]] := decomp_roots_poly f.
 have Hsg x : Num.sg f.[x] = 
              Num.sg (lead_coef f) * \prod_(i <- l_re) Num.sg ('X - i%:P).[x].
-  rewrite [in LHS]eq_f hornerZ sgrM hornerM sgrM -[RHS]mulr1 mulrA. 
-  congr (_ * _ * _); last rewrite big_seq_cond /=; last first.
-    apply: (big_rec (fun i => Num.sg i.[x] = 1)); first by rewrite hornerE sgr1.
-    move=> u p u_in Hp; rewrite hornerM sgrM Hp mulr1 -scaleNr -/(P2 (- _) _).
-    apply/gtr0_sg/P2_pos; rewrite /P2 scaleNr.
-    by apply: irr_f; move: u_in; rewrite andbT; apply.
-  apply: (big_rec2 (fun i j => Num.sg i.[x] = j)).
-    by rewrite hornerE sgr1.
-  by move=> u p v _ Hp; rewrite hornerM sgrM Hp.
-have : ~~ (Num.sg f.[a] == Num.sg f.[b]).
-  rewrite (ltr0_sg fa) (gtr0_sg fb) eq_sym -subr_eq0 opprK /=.
-  have -> : (1 + 1 = 2%:R :> normT) by rewrite -addn1 natrD.
-  by rewrite pnatr_eq0.
+  rewrite [in LHS]eq_f hornerZ sgrM hornerM sgrM -[RHS]mulr1 mulrA.
+  congr (_ * _ * _); last rewrite big_seq_cond /=.
+    apply: (big_rec2 (fun i j => Num.sg i.[x] = j)).
+      by rewrite hornerE sgr1.
+    by move=> u p v _ Hp; rewrite hornerM sgrM Hp.
+  apply: (big_rec (fun i => Num.sg i.[x] = 1)); first by rewrite hornerE sgr1.
+  move=> u p; rewrite andbT=>u_in Hp; rewrite hornerM sgrM poly_re_sg ?mul1r //.
+  exact: (is_im _ u_in).
+have root_l_re x : x \in l_re -> root f x.
+  by move=> x_in; rewrite eq_f -mul_polyC !rootM root_prod_XsubC x_in /= orbT.
 have H : Num.sg (lead_coef f) != 0.
-  rewrite sgr_eq0 lead_coef_eq0; apply/negP => /eqP f_eq0.
-  by move: fa; rewrite f_eq0 horner0 ltrr.
-rewrite !Hsg (inj_eq (mulfI H)) => /negP Hneq_prod.
-have : has (fun i => (Num.sg ('X - i%:P).[a] == -1) && (Num.sg ('X - i%:P).[b] == 1)) l_re.
-  apply/negPn/negP; rewrite -all_predC => /allP Hall; apply/Hneq_prod/eqP.
-  rewrite big_seq_cond [in RHS]big_seq_cond. 
-  apply: eq_bigr => i; rewrite andbT => i_in; have /= := (Hall i i_in).
-  rewrite negb_and => /orP[]; case: (sgrP _) => //.
-  + move/eqP; rewrite !hornerE subr_eq0 => /eqP eq_ai.
-    by move: a_nroot; rewrite eq_ai (root_l_re _ i_in).
-  + rewrite !hornerE => leq_ai _; apply/esym/gtr0_sg/(ltr_le_trans leq_ai).
-    by apply/(ler_add le_ab (lerr _)).
-  + by move=> _; rewrite eq_refl.
-  + move/eqP; rewrite !hornerE subr_eq0 => /eqP eq_bi.
-    by move: b_nroot; rewrite eq_bi (root_l_re _ i_in).
-  + by move=> _; rewrite eq_refl.  
-  + rewrite !hornerE => leq_bi _; apply/ltr0_sg/(ler_lt_trans _ leq_bi).
-    by apply/(ler_add le_ab (lerr _)).
-move/hasP => [x x_in]; rewrite !hornerE !sgr_cp0 => {Hsg} /andP[] Ha Hb.
-exists x.
-  by rewrite -subr_le0 -[X in _ && X]subr_ge0 (ltrW Ha) (ltrW Hb).
-rewrite rootE eq_f !hornerE /= ?mulf_eq0; apply/orP; left; apply/orP; right.
-rewrite horner_prod prodf_seq_eq0; apply/hasP; exists x => //.
-by rewrite andTb !hornerE subrr.
+  rewrite sgr_eq0 lead_coef_eq0; apply/(contraTneq _ (introT eqP sg_fb))=> ->.
+  by rewrite horner0 sgr0 eq_sym oner_neq0.
+have /hasP[x x_in Hhas] : has (fun i => Num.sg ('X - i%:P).[a] 
+                                     < Num.sg ('X - i%:P).[b]) l_re.
+  apply/negPn/negP; rewrite -all_predC => /allP Hall; have /eqP := sg_fa.
+  rewrite !Hsg big_seq_cond (eq_bigr (fun i => Num.sg ('X - i%:P).[b])).
+    by rewrite -big_seq_cond -Hsg sg_fb -addr_eq0 (_ : 1 + 1 = 2%:R) ?pnatr_eq0.
+  move=> x; rewrite andbT => /Hall /=; rewrite -lerNgt ler_eqVlt.
+  move=> /orP[/eqP -> //|/sgr_mono]; rewrite !hornerE => Hh.
+  by apply: False_rect; move: Hh; apply/negP; rewrite ltr_add2r -lerNgt le_ab.
+exists x; last exact: (root_l_re x x_in).
+move: Hhas; rewrite !hornerE -subr_le0 -[x <= _]subr_ge0. 
+case: sgrP; case: sgrP => // _ _; rewrite ?ltrr ?ltr10 ?ltr0N1 //.
+by rewrite -[-1]sub0r ltr_subr_addl (_ : 1 + 1 = 2%:R) ?ltrn0.
 Qed.
-
-Canonical normT_rcfType := Eval hnf in RcfType normT normT_real_closed.
-Canonical normT_of_rcfType := Eval hnf in [rcfType of {normT T}].
 
 End NormRcfType.
 
-Notation "{ 'normT' T }" := (normT_of (Phant T)).
+Canonical normT_rcfType (T : numClosedFieldType) := 
+  Eval hnf in RcfType (normT T) (@normT_real_closed T).
+Canonical normT_of_rcfType (T : numClosedFieldType) := 
+  Eval hnf in [rcfType of {normT T}].
 
-Canonical normT_archiRcfType := [archiRcfType of normT T].
-Canonical normT_of_archiRcfType := [archiRcfType of {normT T}].
+Canonical normT_archiRcfType (T : archiNumClosedFieldType) := 
+  [archiRcfType of normT T].
+Canonical normT_of_archiRcfType (T : archiNumClosedFieldType) := 
+  [archiRcfType of {normT T}].
 
-End NormArchiRcfType.
+End NormType.
 
-Section Algr.
+Export NormType.
+
+Module Algr.
+
+Section AlgrNormT.
 
 Variable R : rcfType.
 
@@ -2184,7 +1734,7 @@ Qed.
 
 Lemma map_poly_pos {T : rcfType} (p : {poly rat}) (a b e : rat) :
   e > 0 -> (forall y, a <= y <= b -> p.[y] > e) ->
-  forall (y : T), ratr a  <= y <= ratr b -> (map_poly ratr p).[y] > 0.
+  forall (y : T), ratr a <= y <= ratr b -> (map_poly ratr p).[y] > 0.
 Proof.
 move=> lt_e0 lt_p x /andP[]; rewrite ler_eqVlt => /orP[/eqP <- | lt_ax].
   rewrite ler_rat => le_ab; rewrite horner_map ltr0q.
@@ -2237,21 +1787,6 @@ move/(ltr_le_trans _); apply; rewrite subr_gt0 horner_map ltr_rat.
 by apply/lt_p; rewrite lt_ay lt_yb.
 Qed.
 
-Lemma Q_dense_archi {T : archiRealFieldType} (x y : T) :
-  x < y -> {q : rat | x < ratr q < y}.
-Proof.
-move=> lt_xy; pose e := y - x.
-have lt_e0 : 0 < e by rewrite subr_gt0.
-have lt_eI0 := (divr_ge0 ler01 (ltrW lt_e0)).
-have := (archi_boundP lt_eI0); set n := bound _ => lt_n; have := lt_n.
-have lt_n0 := (ler_lt_trans lt_eI0 lt_n).
-rewrite (ltr_pdivr_mulr _ 1 lt_e0) mulrC -(ltr_pdivr_mulr _ _ lt_n0) => lt_e.
-have /floorC_itv/andP[] : x * n%:R \is Num.real by apply: num_real.
-set m := floorC _; rewrite -(ler_pdivr_mulr _ _ lt_n0) => le_rx.
-rewrite -(ltr_pdivl_mulr _ _ lt_n0) => lt_xr; pose r := (m + 1)%:Q / n%:Q.
-exists r; rewrite fmorph_div /= ratr_nat ratr_int lt_xr /= intrD mulrDl rmorph1.
-by rewrite -(addrNK x y) -/e addrC; apply/(ltr_le_add lt_e le_rx).
-Qed.
 
 (* closed intervals instead of open ones + strict :TODO: change in polyrcf *)
 Lemma deriv_sign_proper {T : rcfType} (a b : T) p :
@@ -2291,19 +1826,19 @@ Variable p : {poly rat}.
 
 Definition P_eps : rat :=
   if (((map_poly ratr p).[x] > 0) =P true) is (ReflectT lt_q'0)
-    then sval (Q_dense_archi (lt_q'0))
+    then sval (rat_dense (lt_q'0))
     else 0.
 
 Definition P_a : rat :=
   if (((map_poly ratr p) - (ratr P_eps)%:P != 0) =P true) 
        is ReflectT qn0
-  then sval (Q_dense_archi (prev_root_lt (ltr_snaddr (ltrN10 _) (lerr x)) qn0))
+  then sval (rat_dense (prev_root_lt (ltr_snaddr (ltrN10 _) (lerr x)) qn0))
   else 0.
 
 Definition P_b : rat :=
   if (((map_poly ratr p) - (ratr P_eps)%:P != 0) =P true) 
        is ReflectT qn0
-  then sval (Q_dense_archi (next_root_gt (ltr_spaddr ltr01 (lerr x)) qn0))
+  then sval (rat_dense (next_root_gt (ltr_spaddr ltr01 (lerr x)) qn0))
   else 0.
 
 Section P_eps_cond.
@@ -2313,13 +1848,13 @@ Hypothesis P_lt_q'0 : (map_poly ratr p).[x] > 0.
 Lemma P_lt_0e : 0 < P_eps.
 Proof.
 rewrite /P_eps; case: eqP => [lt_q'0| /negP]; last by rewrite P_lt_q'0.
-by have /andP[] := (svalP (Q_dense_archi lt_q'0)); rewrite ltr0q.
+by have /andP[] := (svalP (rat_dense lt_q'0)); rewrite ltr0q.
 Qed.
 
 Lemma P_lt_eq' : ratr P_eps < (map_poly ratr p).[x].
 Proof.
 rewrite /P_eps; case: eqP => [lt_q'0| /negP]; last by rewrite P_lt_q'0.
-by have /andP[_] := (svalP (Q_dense_archi lt_q'0)).
+by have /andP[_] := (svalP (rat_dense lt_q'0)).
 Qed.
 
 Lemma P_q'e_n0 : 
@@ -2332,13 +1867,13 @@ Qed.
 Lemma P_lt_ax : ratr P_a < x.
 Proof.
 rewrite /P_a; case: eqP => [q_n0| /negP]; last by rewrite P_q'e_n0.
-by move: (prev_root_lt _ _) => H; have /andP[_] := svalP (Q_dense_archi H).
+by move: (prev_root_lt _ _) => H; have /andP[_] := svalP (rat_dense H).
 Qed.
 
 Lemma P_lt_xb : x < ratr P_b.
 Proof.
 rewrite /P_b; case: eqP => [q_n0| /negP]; last by rewrite P_q'e_n0.
-by move: (next_root_gt _ _) => H; have /andP[] := svalP (Q_dense_archi H).
+by move: (next_root_gt _ _) => H; have /andP[] := svalP (rat_dense H).
 Qed.
 
 Lemma P_lt_ab : P_a < P_b.
@@ -2358,12 +1893,12 @@ case: (ltrgtP (ratr y) x) => [lt_yx| lt_xy | -> //].
 + rewrite (@sgr_neighplN _ _ (x - 1) _ nroot_x) ?sgx// /neighpl inE lt_yx andbT.
   apply/(@ltr_le_trans _ (ratr P_a)); last by rewrite ler_rat le_ay.
   rewrite /P_a; case: eqP => [q_n0| /negP]; last by rewrite P_q'e_n0.
-  by move: (prev_root_lt _ _) => H; have /andP[] := svalP (Q_dense_archi H).
+  by move: (prev_root_lt _ _) => H; have /andP[] := svalP (rat_dense H).
 rewrite rootE in nroot_x.
 rewrite (@sgr_neighprN _ _ _ (x + 1) nroot_x) ?sgx// /neighpr inE lt_xy /=. 
 apply/(@ler_lt_trans _ (ratr P_b)); first by rewrite ler_rat le_yb.
 rewrite /P_b; case: eqP => [q_n0| /negP]; last by rewrite P_q'e_n0.
-by move: (next_root_gt _ _) => H; have /andP[] := svalP (Q_dense_archi H).
+by move: (next_root_gt _ _) => H; have /andP[] := svalP (rat_dense H).
 Qed.
 
 Lemma P_int_lt0 {fT : rcfType} (y : fT) :
@@ -2785,12 +2320,12 @@ move=> qa qb /andP[lt_qaxy lt_xyqb].
 pose e := Num.min ((x - y) - ratr qa) (ratr qb - (x - y)).
 have e_gt0 : e / 2%:R > 0. 
   by rewrite divr_gt0 ?ltr0n // ltr_minr !subr_gt0 lt_qaxy lt_xyqb. 
-have [qe /andP[lt_0qe]] := Q_dense_archi e_gt0.
+have [qe /andP[lt_0qe]] := rat_dense e_gt0.
 rewrite ltr_pdivl_mulr ?ltr0n // mulr_natr mulr2n => lt_qeqee.
-have /Q_dense_archi [qx /andP[]] : x - ratr qe < x.
+have /rat_dense [qx /andP[]] : x - ratr qe < x.
   by rewrite ltr_subl_addr ltr_addl lt_0qe. 
 rewrite ltr_subl_addr -rmorphD /= => lt_xq lt_qx.
-have /Q_dense_archi [qy /andP[]] : y - ratr qe < y.
+have /rat_dense [qy /andP[]] : y - ratr qe < y.
   by rewrite ltr_subl_addr ltr_addl lt_0qe. 
 rewrite ltr_subl_addr -rmorphD /= => lt_yq lt_qy.
 have lt_qa : ratr qa < ratr qx - ratr (qy + qe) :> fT.
@@ -2895,7 +2430,7 @@ move=> qa; wlog: qa / 0 < qa => [ihp qb| lt_0a].
   rewrite ler_eqVlt => /orP[/eqP/esym ->| lt_0qa]; last first.
     by apply: ihp => //; apply/ltrW.
   rewrite !rmorph0 => /andP[lt_0n lt_nb].
-  have [qa' /andP[lt_0a' lt_a'n]] := Q_dense_archi lt_0n.
+  have [qa' /andP[lt_0a' lt_a'n]] := rat_dense lt_0n.
   suff: ratr qa' < `|xb / yb| < ratr qb.
     move=> /andP[lt_q'n ->]; rewrite andbT.
     by apply/(ltr_trans _ lt_q'n); have := lt_0a'; rewrite !ltr0q.
@@ -2927,14 +2462,14 @@ have e_gt0 : 0 < e.
 have e_gt1 : Num.sqrt e > 1.
   rewrite -sqrtr1 ltr_sqrt // ltr_minr ltr_pdivl_mulr ?ltr0q // mul1r.
   by rewrite lt_axy /= ltr_pdivl_mulr // mul1r lt_xyb.
-have [qe /andP[lt_1qe lte]] := Q_dense_archi e_gt1.
+have [qe /andP[lt_1qe lte]] := rat_dense e_gt1.
 have lt_0qe : 0 < qe by have := (ltr_trans ltr01 lt_1qe); rewrite ltr0q.
 have lt_qee : ratr qe * ratr qe < e.
   by rewrite -(sqr_sqrtr (ltrW e_gt0)) expr2 ltr_pmul // ?ler0q ltrW.
 have := lt_1qe; rewrite -(ltr_pmulr _ lt_0x).
-move/Q_dense_archi => [qx /andP[lt_xqx lt_qxxe]].
+move/rat_dense => [qx /andP[lt_xqx lt_qxxe]].
 have := lt_1qe; rewrite -(ltr_pmulr _ lt_0y).
-move/Q_dense_archi => [qy /andP[lt_yqy lt_qyye]].
+move/rat_dense => [qy /andP[lt_yqy lt_qyye]].
 have Hqinf : ratr qa < ratr (qx / qy / qe) :> fT.
   suff : ratr qa < ratr (qx / qy / qe) :> T by rewrite !ltr_rat.
   apply/(@ltr_trans _ (`|x' * y'|/`|y'|/(ratr qe * ratr qe))).
@@ -3035,6 +2570,92 @@ Qed.
 
 Canonical from_aCR_rmorphism := RMorphism from_aCR_is_rmorphism.
 
+End AlgrNormT.
+
+Arguments from_RA [R].
+Arguments from_aCR [R].
+
+Section AlgrAlgC.
+
+Variable T : numClosedFieldType.
+
+Definition algr (x : algC) : T :=
+  let x_re := NormT (algCreal_Re x) in
+  let x_im := NormT (algCreal_Im x) in
+  (nval (from_aCR x_re)) + 'i * (nval (from_aCR x_im)).
+
+(* :TODO: comprendre le bug *)
+
+(* Lemma algr_planteR x y : *)
+(*  NormT (algCreal_Re (x - y)) = NormT (algCreal_Re x) - NormT (algCreal_Re y). *)
+(* Proof. *)
+(* by apply/nval_inj; rewrite /= raddfB. *)
+(* Qed. *)
+(* Lemma algr_planteI x y : *)
+(*  NormT (algCreal_Im (x - y)) = NormT (algCreal_Im x) - NormT (algCreal_Im y). *)
+(* Proof. *)
+(* by apply/nval_inj; rewrite /= raddfB. *)
+(* Qed. *)
+
+(* Lemma algr_is_additive2 : additive algr. *)
+(* Proof. *)
+(* move=> x y /=; rewrite /algr opprD addrACA -mulrBr -!rmorphB /=. *)
+(* by rewrite algr_planteR algr_planteI. *)
+(* Qed. *)
+
+(* Lemma algr_is_additive3 : additive algr. *)
+(* Proof. *)
+(* move=> x y /=; rewrite /algr opprD addrACA -mulrBr -!rmorphB /=. *)
+(* by congr (nval (_ _) + 'i * nval (from_aCR _)); rewrite ?algr_planteR ?algr_planteI. *)
+(* Qed. *)
+
+(* Lemma algr_is_additive : additive algr. *)
+(* Proof. *)
+(*   move=> x y /=; rewrite /algr opprD addrACA -mulrBr -!rmorphB /=. *)
+(*   by congr (_ (_ _) +'i * nval (from_aCR _)); apply/nval_inj; rewrite /= raddfB. *)
+(* Qed. *)
+
+Lemma algr_is_rmorphism : rmorphism algr.
+Proof.
+split.
+  move=> x y /=; rewrite /algr opprD addrACA -mulrBr -!rmorphB /=.
+  by congr (_ + (_ * _)); congr (nval (_ _)); apply/nval_inj; rewrite /= raddfB.
+split; rewrite /algr; last first.
++ have -> : NormT (algCreal_Re 1) = 1 by apply/nval_inj/Creal_ReP/Creal1.
+  have -> : NormT (algCreal_Im 1) = 0 by apply/nval_inj/Creal_ImP/Creal1.
+  by rewrite rmorph0 rmorph1 mulr0 addr0.
+move=> x y /=; rewrite /algr mulC_rect -!rmorphM -!rmorphB -!rmorphD /=.
+congr (_ + (_ * _)); congr (nval (_ _)); apply/nval_inj;
+rewrite /= {1}(Crect x) {1}(Crect y) mulC_rect.
+  by apply/Re_rect; rewrite ?realB ?realD // realM ?Creal_Im ?Creal_Re.
+by apply/Im_rect; rewrite ?realB ?realD // realM ?Creal_Im ?Creal_Re.
+Qed.
+
+Canonical algr_rmorphism := RMorphism algr_is_rmorphism.
+
+End AlgrAlgC.
+
+Section AlgrComplexalg.
+
+Variable T : numClosedFieldType.
+
+Definition algrCA (x : complexalg) : T :=
+  (nval (from_RA (complex.Re x))) + 'i * (nval (from_RA (complex.Im x))).
+
+Lemma algrCA_is_rmorphism : rmorphism algrCA.
+Proof.
+split.
++ move=> [xr xi] [yr yi]; rewrite /algrCA /= !rmorphB /= mulrBr opprD !addrA.
+  by congr (_ + _); rewrite addrAC.
+split; last by rewrite /algrCA /= rmorph0 rmorph1 mulr0 addr0.
+move=> [xr xi] [yr yi]; rewrite /algrCA /= rmorphB !rmorphD !rmorphM !mulrDr /=.
+rewrite !mulrDl ![_ * ('i * _)]mulrCA addrAC [X in (_ + X + _)]addrC !addrA.
+by rewrite !mulrA; congr (_ + _ + _ + _); rewrite -expr2 sqrCi -mulrA mulN1r.
+Qed.
+
+Canonical algrCA_rmorphism := RMorphism algrCA_is_rmorphism.
+
+End AlgrComplexalg.
 
 End Algr.
 
@@ -3044,18 +2665,434 @@ Export Archi.ArchiNumDomain.Exports Archi.ArchiNumField.Exports.
 Export Archi.ArchiNumClosedField.Exports Archi.ArchiRealDomain.Exports.
 Export Archi.ArchiRealField.Exports Archi.ArchiRealClosedField.Exports.
 
-Definition rT := {normT T}.
 
-Definition ext_f (f : {rmorphism realalg -> rT}) (x : complexalg) : T := 
-  (nval (f (complex.Re x))) + 'i * (nval (f (complex.Im x))).
+(* complements on numClosedField *)
+Section NCFComplements.
 
-Lemma ext_f_is_rmorphism (f : {rmorphism realalg -> rT}) : rmorphism (@ext_f f).
+Variable R : numClosedFieldType.
+Implicit Types x y : R.
+
+(* complete order not compatible with all operations ! *)
+Definition lec x y :=
+    ('Re x < 'Re y) || (('Re x == 'Re y) && ('Im x <= 'Im y)).
+
+Definition ltc x y :=
+    (lec x y) && (x != y).
+
+Notation "x <=%C y" := (lec x y) (at level 35) : ring_scope.
+Notation "x <%C y" := (ltc x y) (at level 35) : ring_scope.
+
+Lemma lecE x y :
+  (x <=%C y) = ('Re x < 'Re y) || (('Re x == 'Re y) && ('Im x <= 'Im y)).
+Proof. by rewrite /lec. Qed.
+
+Lemma ltcE x y :
+  (x <%C y) = (x <=%C y) && (x != y).
+Proof. by rewrite /ltc. Qed.
+
+Lemma lecc : reflexive lec.
+Proof. by move=> x; rewrite lecE eq_refl lerr andbT orbT. Qed.
+Hint Resolve lecc.
+
+Lemma lec_trans : transitive lec.
 Proof.
-split.
-+ move=> [xr xi] [yr yi]; rewrite /ext_f /= !rmorphB /= mulrBr opprD !addrA.
-  by congr (_ + _); rewrite addrAC.
-split; last by rewrite /ext_f /= rmorph0 rmorph1 mulr0 addr0.
-move=> [xr xi] [yr yi]; rewrite /ext_f /= rmorphB !rmorphD !rmorphM !mulrDr /=.
-rewrite !mulrDl ![_ * ('i * _)]mulrCA addrAC [X in (_ + X + _)]addrC !addrA.
-by rewrite !mulrA; congr (_ + _ + _ + _); rewrite -expr2 sqrCi -mulrA mulN1r.
+move=> x y z; rewrite !lecE => /orP[Ryx | /andP[/eqP <- Iyx]].
+  move=> /orP[Rxz | /andP[/eqP <- _]].
+  + by apply/orP; left; apply: (ltr_trans Ryx Rxz).
+  + by rewrite Ryx.
+move=> /orP[Ryz | /andP[/eqP <- Ixz]].
++ by rewrite Ryz.
++ by rewrite eq_refl (ler_trans Iyx Ixz) andbT orbT.
 Qed.
+
+Lemma lec_asym : antisymmetric lec.
+Proof.
+move=> x y /andP[]; rewrite !lecE => /orP[Rxy | /andP[/eqP Rxy Ixy /=]].
+  move=> /orP[ | /andP[]].
+  + by rewrite ltr_gtF.
+  by rewrite (gtr_eqF Rxy).
+move=> /orP[ | /andP[/eqP Ryx Iyx]].
++ by rewrite Rxy ltrr.
+rewrite [x]Crect [y]Crect Rxy.
+by move: Iyx; rewrite ler_eqVlt (ler_gtF Ixy) orbF => /eqP ->.
+Qed.
+
+Lemma ltc_neqAle x y :
+  (x <%C y) = (x != y) && (x <=%C y).
+Proof. by rewrite ltcE andbC. Qed.
+
+Lemma lec_eqVlt x y :
+  (x <=%C y) = (x == y) || (x <%C y).
+Proof.
+rewrite ltc_neqAle.
+by case: (boolP (x == y)) => [/eqP -> | _ //=]; rewrite orTb lecc.
+Qed.
+
+Lemma ltcNge x y : x <%C y = ~~ (y <=%C x).
+Proof.
+rewrite ltcE lecE negb_or negb_and.
+case: (boolP (x == y)) => [/eqP -> | ]; first by rewrite eq_refl lerr /= !andbF.
+move=> x_neqy; rewrite /= andbT.
+rewrite -?real_ltrNge -?real_lerNgt ?Creal_Re ?Creal_Im ?ler_eqVlt //.
+have x_rect := (Crect x); have y_rect := (Crect y).
+have [ | | eq_Re] //= := (real_ltrgtP (Creal_Re x) (Creal_Re y)).
+have [ | | eq_Im] //= := (real_ltrgtP (Creal_Im x) (Creal_Im y)).
+by move: x_neqy; rewrite x_rect y_rect eq_Re eq_Im eq_refl.
+Qed.
+
+Lemma lecNgt x y : x <=%C y = ~~ (y <%C x).
+Proof. by rewrite ltcNge negbK. Qed.
+
+Lemma ltcc x : x <%C x = false.
+Proof. by rewrite ltcE eq_refl /= andbF. Qed.
+
+Lemma ltc_trans : transitive ltc.
+Proof.
+move=> y x z; rewrite ltc_neqAle => /andP [_ le_xy].
+rewrite !ltcNge => /negP le_zy; apply/negP => le_zx.
+by apply: le_zy; apply: (lec_trans le_zx le_xy).
+Qed.
+
+Lemma neq_ltc x y :
+  (x != y) = (x <%C y) || (y <%C x).
+Proof.
+rewrite !ltcNge -negb_and; congr (~~ _).
+apply/idP/idP => [/eqP -> | H_anti]; first by rewrite andbb.
+by rewrite eq_sym; apply/eqP; apply: lec_asym.
+Qed.
+
+Lemma eqc_le x y : (x == y) = (x <=%C y && y <=%C x).
+Proof. by apply/eqP/idP=> [->|/lec_asym]; rewrite ?lecc. Qed.
+
+Lemma lec_total : total lec.
+Proof. by move=> x y; rewrite lec_eqVlt ltcNge -orbA orNb orbT. Qed.
+
+Lemma ltc_le_trans y x z : x <%C y -> y <=%C z -> x <%C z.
+Proof.
+by move=> lt_xy; rewrite lec_eqVlt => /orP [/eqP <- // | ]; apply: ltc_trans.
+Qed.
+
+Lemma lec_lt_trans y x z : x <=%C y -> y <%C z -> x <%C z.
+Proof. by rewrite lec_eqVlt => /orP [/eqP <- // | ]; apply: ltc_trans. Qed.
+
+Lemma ltc_eqF x y : x <%C y -> (x == y) = false.
+Proof. by rewrite ltcE => /andP[ _ ] /negbTE. Qed.
+
+Lemma ltcW x y : x <%C y -> x <=%C y.
+Proof. by rewrite ltcE => /andP[-> _]. Qed.
+
+CoInductive comparec x y : bool -> bool -> bool -> bool -> bool -> bool -> Set:=
+| ComparecLt : x <%C y -> comparec x y false false true false true false
+| ComparecGt : y <%C x -> comparec x y false false false true false true
+| ComparecEq : x = y -> comparec x y true true true true false false.
+
+CoInductive ltc_xor_ge x y : bool -> bool -> Set :=
+| LtcNotGe : x <%C y -> ltc_xor_ge x y false true
+| GecNotLt : y <=%C x -> ltc_xor_ge x y true false.
+
+CoInductive lec_xor_gt x y : bool -> bool -> Set :=
+| LecNotGt : x <=%C y -> lec_xor_gt x y true false
+| GtcNotLe : y <%C x -> lec_xor_gt x y false true.
+
+Lemma ltcgtP x y :
+  comparec x y (x == y) (y == x) (x <=%C y) (y <=%C x) (x <%C y) (y <%C x).
+Proof.
+case: (boolP (_ <%C _)) => [ltxy | nltxy].
+  have H := (ltc_eqF ltxy); rewrite H; move: H; rewrite eq_sym => ->.
+  rewrite ltcE; have := ltxy; rewrite ltcNge => /negbTE -> /=.
+  by rewrite (ltcW ltxy); constructor.
+rewrite lec_eqVlt (negbTE nltxy).
+move: nltxy; rewrite -lecNgt => lexy; rewrite ltcE lexy orbF /=.
+case: (boolP (_ == _)) => [/eqP eq_xy|].
+  by rewrite eq_xy eq_refl /=; constructor.
+rewrite eq_sym => neq_xy; rewrite (negbTE neq_xy) /=.
+by constructor; rewrite ltcE lexy neq_xy.
+Qed.
+
+Lemma lecP x y : lec_xor_gt x y (x <=%C y) (y <%C x).
+Proof. by case: ltcgtP => [/ltcW lexy | ltyx | ->]; constructor => //. Qed.
+
+Lemma ltcP x y : ltc_xor_ge x y (y <=%C x) (x <%C y).
+Proof. by case: ltcgtP => [/ltcW lexy | ltyx | ->]; constructor => //. Qed.
+
+
+(* Monotony of addition *)
+Lemma lec_add2l x : {mono +%R x : y z / y <=%C z}.
+Proof.
+move=> y z; rewrite lecE !raddfD /= ltr_add2l ler_add2l.
+by rewrite -subr_eq0 opprD addrAC addNKr addrC subr_eq0.
+Qed.
+
+Lemma lec_add2r x : {mono +%R^~ x : y z / y <=%C z}.
+Proof. by move=> y z /=; rewrite ![_ + x]addrC lec_add2l. Qed.
+
+Lemma mono_injc f : {mono f : x y / x <=%C y} -> injective f.
+Proof. by move=> mf x y /eqP; rewrite eqc_le !mf -eqc_le => /eqP. Qed.
+
+Lemma lecW_mono f : {mono f : x y / x <=%C y} -> {mono f : x y / x <%C y}.
+Proof. by move=> mf x y; rewrite !ltc_neqAle mf (inj_eq (mono_injc mf)). Qed.
+
+Lemma lecW_mono_to (R' : eqType) (f : R -> R') (g : rel R') :
+  injective f ->
+  {mono f : x y / x <=%C y >-> g x y} ->
+  {mono f : x y / x <%C y >-> (x != y) && g x y}.
+Proof. by move=> inj_f mf x y /=; rewrite ltc_neqAle mf (inj_eq inj_f). Qed.
+
+Lemma ltc_add2r z x y : (x + z) <%C (y + z) = x <%C y.
+Proof. by rewrite (lecW_mono (lec_add2r _)). Qed.
+
+Lemma ltc_add2l z x y : (z + x) <%C (z + y) = x <%C y.
+Proof. by rewrite (lecW_mono (lec_add2l _)). Qed.
+
+Lemma lec_add x y z t : x <=%C y -> z <=%C t -> (x + z) <=%C (y + t).
+Proof.
+by move=> lxy lzt; rewrite (@lec_trans (y + z)) ?lec_add2l ?lec_add2r.
+Qed.
+
+Lemma ltc_add x y z t : x <%C y -> z <%C t -> (x + z) <%C (y + t).
+Proof.
+by move=> lxy lzt; rewrite (@ltc_trans (y + z)) ?ltc_add2l ?ltc_add2r.
+Qed.
+
+Lemma lec_sum (I : Type) (r : seq I) (P : pred I) (F G : I -> R) :
+  (forall i : I, P i -> (F i) <=%C (G i)) ->
+  (\sum_(i <- r | P i) F i) <=%C (\sum_(i <- r | P i) G i).
+Proof. by exact: (big_ind2 _ (lecc _) lec_add). Qed.
+
+Lemma ltc_sum (I : Type) (r : seq I) (F G : I -> R) :
+  (0 < size r)%N -> (forall i : I, (F i) <%C (G i)) ->
+  (\sum_(i <- r) F i) <%C (\sum_(i <- r) G i).
+Proof.
+case: r => [// | x r _ Hi]; rewrite big_cons big_cons.
+apply: (@ltc_le_trans (G x + \sum_(j <- r) F j)); first by rewrite ltc_add2r.
+by rewrite lec_add2l; apply: lec_sum => i _; rewrite lec_eqVlt Hi orbT.
+Qed.
+
+(* lec_iff *)
+Definition lecif x y (C : bool) : Prop :=
+    ((x <=%C y) * ((x == y) = C))%type.
+
+Definition lec_of_leif x y C (le_xy : lecif x y C) := le_xy.1 : x <=%C y.
+Coercion lec_of_leif : lecif >-> is_true.
+
+Lemma lecifP x y C : reflect (lecif x y C) (if C then x == y else x <%C y).
+Proof.
+rewrite /lecif lec_eqVlt; apply: (iffP idP)=> [|[]].
+  by case: C => [/eqP->|lxy]; rewrite ?eqxx // lxy ltc_eqF.
+by move=> /orP[/eqP->|lxy] <-; rewrite ?eqxx // ltc_eqF.
+Qed.
+
+Lemma lecif_refl x C : reflect (lecif x x C) C.
+Proof. by apply: (iffP idP) => [-> | <-] //; split; rewrite ?eqxx. Qed.
+
+Lemma lecif_trans x1 x2 x3 C12 C23 :
+  lecif x1 x2 C12 -> lecif x2 x3 C23 -> lecif x1 x3 (C12 && C23).
+Proof.
+move=> ltx12 ltx23; apply/lecifP; rewrite -ltx12.
+case eqx12: (x1 == x2).
+  by rewrite (eqP eqx12) ltc_neqAle !ltx23 andbT; case C23.
+by rewrite (@ltc_le_trans x2) ?ltx23 // ltc_neqAle eqx12 ltx12.
+Qed.
+
+Lemma lecif_le x y : x <=%C y -> lecif x y (y <=%C x).
+Proof. by move=> lexy; split=> //; rewrite eqc_le lexy. Qed.
+
+Lemma lecif_eq x y : x <=%C y -> lecif x y (x == y).
+Proof. by []. Qed.
+
+Lemma gec_lecif x y C : lecif x y C -> y <=%C x = C.
+Proof. by case=> le_xy; rewrite eqc_le le_xy. Qed.
+
+Lemma ltc_lecif x y C : lecif x y C -> (x <%C y) = ~~ C.
+Proof. by move=> le_xy; rewrite ltc_neqAle !le_xy andbT. Qed.
+
+Lemma mono_lecif (f : R -> R) C :
+    {mono f : x y / x <=%C y} ->
+  forall x y, (lecif (f x) (f y) C) = (lecif x y C).
+Proof. by move=> mf x y; rewrite /lecif mf (inj_eq (mono_injc _)). Qed.
+
+Lemma lecif_add x1 y1 C1 x2 y2 C2 :
+    lecif x1 y1 C1 -> lecif x2 y2 C2 ->
+  lecif (x1 + x2) (y1 + y2) (C1 && C2).
+Proof.
+rewrite -(mono_lecif _ (lec_add2r x2)) -(mono_lecif C2 (lec_add2l y1)).
+exact: lecif_trans.
+Qed.
+
+Lemma lecif_sum (I : finType) (P C : pred I) (E1 E2 : I -> R) :
+    (forall i, P i -> lecif (E1 i) (E2 i) (C i)) ->
+  lecif (\sum_(i | P i) E1 i) (\sum_(i | P i) E2 i) [forall (i | P i), C i].
+Proof.
+move=> leE12; rewrite -big_andE.
+elim/big_rec3: _ => [|i Ci m2 m1 /leE12]; first by rewrite /lecif lecc eqxx.
+exact: lecif_add.
+Qed.
+
+
+(* max *)
+Definition maxc x y := if (x <=%C y) then y else x.
+
+CoInductive maxc_spec x y : bool -> bool -> R -> Set :=
+| Maxc_l of x <=%C y : maxc_spec x y true false y
+| Maxc_r of y <%C x : maxc_spec x y false true x.
+
+Lemma maxcP x y : maxc_spec x y (x <=%C y) (y <%C x) (maxc x y).
+Proof. by rewrite /maxc; case: lecP => H; constructor. Qed.
+
+Lemma maxcA : associative maxc.
+Proof.
+move=> a b c; case: (maxcP b c); case: (maxcP a b) => //.
++ by move=> leab lebc; rewrite /maxc (lec_trans leab lebc) lebc.
++ by case: maxcP.
+by move=> ltba ltcb; rewrite /maxc lecNgt (ltc_trans ltcb ltba).
+Qed.
+
+Lemma maxc_addl : left_distributive +%R maxc.
+Proof. by move=> x y z; rewrite /maxc /= lec_add2r; case: ifP => _. Qed.
+
+Lemma maxc_addr : right_distributive +%R maxc.
+Proof. by move=> x y z; rewrite ![x + _]addrC maxc_addl. Qed.
+
+Lemma maxcc x : maxc x x = x.
+Proof. by rewrite /maxc lecc. Qed.
+
+Lemma maxcC : commutative maxc.
+Proof. by move=> x y; rewrite /maxc; case: (ltcgtP x y). Qed.
+
+Lemma maxcl x y : x <=%C (maxc x y).
+Proof. by case: maxcP. Qed.
+
+Lemma maxcr x y : y <=%C (maxc x y).
+Proof. by case: maxcP=> // /ltcW. Qed.
+
+(* ordered sequence of the roots of a polynomial *)
+Definition Croots (P : {poly R}) :=
+  if P == 0
+  then [::]
+  else sort lec (sval (closed_field_poly_normal P)).
+
+Lemma Croots0 : Croots 0 = [::].
+Proof. by rewrite /Croots eq_refl. Qed.
+
+Lemma Croots_sorted P : sorted lec (Croots P).
+Proof. by rewrite /Croots; case: ifP => // _; apply/sort_sorted/lec_total. Qed.
+
+Lemma Croots_perm P :
+  P != 0 -> perm_eq (Croots P) (sval (closed_field_poly_normal P)).
+Proof. by rewrite /Croots => /negbTE ->; apply/perm_eqlP/perm_sort. Qed.
+
+Lemma Croots_poly P : P = lead_coef P *: \prod_(x <- (Croots P)) ('X - x%:P).
+Proof.
+case: (boolP (P == 0)) => [/eqP -> | /negbTE P_neq0].
+  by rewrite lead_coef0 scale0r.
+rewrite {1}(svalP(closed_field_poly_normal P)); congr (_ *: _).
+by apply/esym/eq_big_perm/Croots_perm; rewrite P_neq0.
+Qed.
+
+Lemma CrootsP P (P_neq0 : P != 0) x : reflect (root P x) (x \in Croots P).
+Proof.
+rewrite (perm_eq_mem (Croots_perm P_neq0)).
+have lead_coef_neq0 : lead_coef P != 0; first by rewrite lead_coef_eq0.
+move: P_neq0 (svalP(closed_field_poly_normal P)) => /negbTE P_neq0 {1}->.
+by rewrite (rootZ _ _ lead_coef_neq0) root_prod_XsubC; apply: (iffP idP).
+Qed.
+
+Lemma Croots_neq0 P : (P != 0) -> (0 \in (Croots P)) = (P`_0 == 0).
+Proof.
+move=> P_neq0; apply/(CrootsP P_neq0)/eqP.
+  by move/rootP; rewrite horner_coef0 => ->.
+by move=> H; apply/rootP; rewrite horner_coef0.
+Qed.
+
+Lemma Croots_mu P x : (count_mem x) (Croots P) = \mu_x P.
+Proof.
+case: (boolP (P == 0)) =>  [/eqP P_eq0 | P_neq0].
+  by rewrite P_eq0 Croots0 mu0; apply/count_memPn; rewrite in_nil.
+case: (boolP (root P x)) => [x_root | x_not_root]; last first.
+  by rewrite (muNroot x_not_root); apply/count_memPn/(CrootsP P_neq0)/negP.
+have Hx : x \in Croots P ++ sval (closed_field_poly_normal P).
+  by have /CrootsP := x_root; move=> /(_ P_neq0); rewrite mem_cat => ->.
+have /allP/(_ x Hx)/eqP -> := Croots_perm P_neq0.
+rewrite [in RHS](svalP (closed_field_poly_normal P)) mu_mulC ?lead_coef_eq0 //.
+move: (sval _); elim => [/=|y s ihs /=]; first by rewrite big_nil mu_polyC.
+rewrite big_cons mu_mul -?ihs; last first.
+  by rewrite mulf_neq0 ?polyXsubC_eq0 -?size_poly_eq0 ?size_prod_XsubC.
+case: (boolP (y == x)) => [/eqP -> | y_neqx /=]; first by rewrite mu_XsubC.
+by rewrite muNroot // root_XsubC eq_sym y_neqx.
+Qed.
+
+Lemma Croots_size P : size (Croots P) = if (P == 0) then 0%N else (size P).-1.
+Proof.
+case: (boolP (P == 0)) => [/eqP ->| P_neq0]; first by rewrite Croots0.
+move: (svalP (closed_field_poly_normal P)) => H; rewrite [in RHS]H.
+rewrite (perm_eq_size (Croots_perm P_neq0)) size_scale ?lead_coef_eq0 //.
+by rewrite size_prod_XsubC.
+Qed.
+
+Lemma Croots_polyC c : Croots c%:P = [::].
+Proof.
+apply: size0nil; rewrite Croots_size.
+case: (boolP (c == 0)) => [/eqP ->|/negbTE c_neq0] /=; first by rewrite eq_refl.
+by rewrite polyC_eq0 c_neq0 size_polyC; move/negbT: c_neq0 => -> /=.
+Qed.
+
+Lemma CrootsM P Q : P * Q != 0 ->
+  perm_eq (Croots (P * Q)) ((Croots P) ++ (Croots Q)).
+Proof.
+by move => PQ_neq0; apply/allP => x _; rewrite /= count_cat !Croots_mu mu_mul.
+Qed.
+
+Lemma CrootsZ P c : c != 0 -> Croots (c *: P) = Croots P.
+Proof.
+case: (boolP (P == 0)) => [/eqP -> | P_neq0 c_neq0]; first by rewrite scaler0.
+apply/(eq_sorted lec_trans lec_asym); rewrite ?Croots_sorted // -mul_polyC.
+apply/(perm_eq_trans (CrootsM _)); rewrite ?Croots_polyC //.
+by rewrite mulf_neq0 ?polyC_eq0.
+Qed.
+
+Lemma Croots_prod (I : Type) P (r : seq I) : all [pred i | P i != 0] r ->
+  perm_eq (Croots (\prod_(i <- r) P i)) (flatten [seq Croots (P i) | i <- r]).
+Proof.
+elim: r => [_ | j r Ihr /= /andP[Pj_neq0 Hall_neq0]]; last rewrite big_cons.
+  by rewrite big_nil /= (_ : 1 = 1%:P :> {poly R}) // Croots_polyC.
+apply/(perm_eq_trans (CrootsM _)); last by rewrite perm_cat2l Ihr.
+by apply/mulf_neq0; rewrite ?Pj_neq0 ?prodf_seq_neq0.
+Qed.
+
+Lemma Croots_XsubC c : Croots ('X - c%:P) = [:: c].
+Proof.
+apply/perm_eq_small => //; apply/uniq_perm_eq => //; last first.
+  move=> y; rewrite inE; have H: 'X - c%:P != 0 by rewrite polyXsubC_eq0.
+  by apply/(CrootsP H)/eqP => [| -> ]; rewrite root_XsubC // => /eqP ->.
+have := Croots_size ('X - c%:P); rewrite polyXsubC_eq0 size_XsubC /=.
+by case: (Croots ('X - c%:P)) => //= a l /eqP; rewrite eqSS => /eqP/size0nil ->.
+Qed.
+
+Lemma Croots_prod_XsubC rs :
+  perm_eq (Croots (\prod_(x <- rs) ('X - x%:P))) rs.
+Proof.
+apply/(perm_eq_trans (Croots_prod _) _).
+  by apply/allP => x /=; rewrite polyXsubC_eq0.
+by rewrite (eq_map Croots_XsubC); elim: rs => //= x rs H /=; rewrite perm_cons.
+Qed.
+
+Lemma Croots_separable P :
+  separable.separable_poly P -> uniq (Croots P).
+Proof.
+case: (boolP (P == 0)) => [/eqP -> _ | P_neq0]; first by rewrite Croots0.
+rewrite [X in separable.separable_poly X]Croots_poly /separable.separable_poly.
+rewrite derivZ coprimep_scalel ?coprimep_scaler ?lead_coef_eq0 //.
+by rewrite -separable.separable_prod_XsubC.
+Qed.
+
+Lemma Croots_eqp P Q :
+  P %= Q -> Croots P = Croots Q.
+Proof.
+case: (boolP (P == 0)) => [/eqP -> | P_neq0 P_eqp_Q].
+  by rewrite eqp_sym eqp0 => /eqP ->.
+have Q_neq0 : Q != 0.
+  by apply/(contraNneq _ P_neq0) => Q_eq0; move: P_eqp_Q; rewrite Q_eq0 eqp0.
+by move/eqpf_eq : P_eqp_Q => [l /= l_neq0 ->]; apply: CrootsZ.
+Qed.
+
+End NCFComplements.
