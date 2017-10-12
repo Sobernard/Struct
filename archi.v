@@ -2965,6 +2965,129 @@ Proof. by case: maxcP. Qed.
 Lemma maxcr x y : y <=%C (maxc x y).
 Proof. by case: maxcP=> // /ltcW. Qed.
 
+
+(* max of a non empty list *)
+Definition bigmaxc x0 lc :=
+  foldr maxc (head x0 lc) (behead lc).
+
+Lemma bigmaxc_nil x0 : bigmaxc x0 [::] = x0.
+Proof. by rewrite /bigmaxc. Qed.
+
+Lemma bigmaxc_un x0 x :
+  bigmaxc x0 [:: x] = x.
+Proof. by rewrite /bigmaxc. Qed.
+
+Lemma bigmaxc_cons x0 x y lc :
+  bigmaxc x0 (x :: y :: lc) = maxc x (bigmaxc x0 (y :: lc)).
+Proof.
+rewrite /bigmaxc /=; elim: lc => [/= | a lc /=].
+  by rewrite maxcC.
+set b := foldr _ _ _; set c := foldr _ _ _ => H.
+by rewrite [maxc a b]maxcC maxcA H -maxcA (maxcC c a).
+Qed.
+
+Lemma bigmaxc_lec x0 lc i :
+  (i < size lc)%N -> lec (nth x0 lc i) (bigmaxc x0 lc).
+Proof.
+case: lc i => [i | x lc]; first by rewrite nth_nil bigmaxc_nil lecc.
+elim: lc x => [x i /= | x lc /= ihlc y i i_size].
+  by rewrite ltnS leqn0 => /eqP ->; rewrite nth0 bigmaxc_un /=.
+rewrite bigmaxc_cons /=; case: i i_size => [_ /= | i]; first by rewrite maxcl.
+rewrite ltnS /=; move/(ihlc x); move/(lec_trans)=> H; apply: H.
+by rewrite maxcr.
+Qed.
+
+(* Compatibility with addition *)
+Lemma bigmaxc_addr x0 lc x :
+  bigmaxc (x0 + x) (map (fun y => y + x) lc) = (bigmaxc x0 lc) + x.
+Proof.
+case: lc => [/= | y lc]; first by rewrite bigmaxc_nil.
+elim: lc y => [y | y lc ihlc z]; first by rewrite /= !bigmaxc_un.
+by rewrite map_cons !bigmaxc_cons ihlc maxc_addl.
+Qed.
+
+Lemma bigmaxc_index x0 lc :
+  (0 < size lc)%N -> (index (bigmaxc x0 lc) lc < size lc)%N.
+Proof.
+case: lc => [//= | x l _].
+elim: l x => [x | x lc]; first by rewrite bigmaxc_un /= eq_refl.
+move/(_ x); set z := bigmaxc _ _ => /= ihl y; rewrite bigmaxc_cons /maxc -/z.
+case: (lec y z); last by rewrite eq_refl.
+by case: (y == z); rewrite //.
+Qed.
+
+Lemma bigmaxc_mem x0 lc :
+  (0 < size lc)%N -> bigmaxc x0 lc \in lc.
+Proof. by move/(bigmaxc_index x0); rewrite index_mem. Qed.
+
+Lemma bigmaxc_lecP x0 lc x :
+  (0 < size lc)%N ->
+  reflect (forall i, (i < size lc)%N -> lec (nth x0 lc i) x) (lec (bigmaxc x0 lc) x).
+Proof.
+move=> lc_size; apply: (iffP idP) => [le_x i i_size | H].
+  by apply: (lec_trans _ le_x); apply: bigmaxc_lec.
+by move/(nthP x0): (bigmaxc_mem x0 lc_size) => [i i_size <-]; apply: H.
+Qed.
+
+Lemma bigmaxcP x0 lc x :
+  (x \in lc /\ forall i, (i < size lc) %N -> lec (nth x0 lc i) x) -> (bigmaxc x0 lc = x).
+Proof.
+move=> [] /(nthP x0) [] j j_size j_nth x_lec; apply: lec_asym; apply/andP; split.
+  by apply/bigmaxc_lecP => //; apply: (leq_trans _ j_size).
+by rewrite -j_nth (bigmaxc_lec _ j_size).
+Qed.
+
+Lemma bigmaxc_lecif x0 lc :
+  uniq lc -> forall i, (i < size lc)%N ->
+     lecif (nth x0 lc i) (bigmaxc x0 lc) (i == index (bigmaxc x0 lc) lc).
+Proof.
+move=> lc_uniq i i_size; rewrite /lecif (bigmaxc_lec _ i_size).
+rewrite -(nth_uniq x0 i_size (bigmaxc_index _ (leq_trans _ i_size)) lc_uniq) //.
+rewrite nth_index //.
+by apply: bigmaxc_mem; apply: (leq_trans _ i_size).
+Qed.
+
+(* max for non-empty list (ffun I_n+1) *)
+Definition bmaxf n (f : {ffun 'I_n.+1 -> R}) :=
+  bigmaxc (f ord0) (codom f).
+
+Lemma bmaxf_lec n (f : {ffun 'I_n.+1 -> R}) i :
+  lec (f i) (bmaxf f).
+Proof.
+move: (@bigmaxc_lec (f ord0) (codom f) (nat_of_ord i)).
+rewrite /bmaxf size_codom card_ord => H; move: (ltn_ord i); move/H.
+suff -> : nth (f ord0) (codom f) i = f i; first by [].
+by rewrite /codom (nth_map ord0) ?size_enum_ord // nth_ord_enum.
+Qed.
+
+Lemma bmaxf_index n (f : {ffun 'I_n.+1 -> R}) :
+  (index (bmaxf f) (codom f) < n.+1)%N.
+Proof.
+rewrite /bmaxf.
+have {6}-> : n.+1 = size (codom f) by rewrite size_codom card_ord.
+by apply: bigmaxc_index; rewrite size_codom card_ord.
+Qed.
+
+Definition index_bmaxf n f := Ordinal (@bmaxf_index n f).
+
+Lemma eq_index_bmaxf n (f : {ffun 'I_n.+1 -> R}) :
+  f (index_bmaxf f) = bmaxf f.
+Proof.
+move: (bmaxf_index f).
+rewrite -{3}[n.+1]card_ord -(size_codom f) index_mem.
+move/(nth_index (f ord0)) => <-; rewrite (nth_map ord0).
+  by rewrite -[(index _ _)]/(nat_of_ord (index_bmaxf _)) nth_ord_enum.
+by rewrite size_enum_ord; apply: bmaxf_index.
+Qed.
+
+Lemma bmaxf_lecif n (f : {ffun 'I_n.+1 -> R}) :
+  injective f -> forall i,
+     lecif (f i) (bmaxf f) (i == index_bmaxf f).
+Proof.
+by move=> inj_f i; rewrite /lecif bmaxf_lec -(inj_eq inj_f) eq_index_bmaxf.
+Qed.
+
+
 (* ordered sequence of the roots of a polynomial *)
 Definition Croots (P : {poly R}) :=
   if P == 0
@@ -3095,4 +3218,15 @@ have Q_neq0 : Q != 0.
 by move/eqpf_eq : P_eqp_Q => [l /= l_neq0 ->]; apply: CrootsZ.
 Qed.
 
+(* minimal polynomial of an algebraic number of a numClosedField *)
+
+
+Print separable.separable_poly.
+
 End NCFComplements.
+
+Arguments lec {R}.
+Arguments ltc {R}.
+Arguments maxc {R}.
+Arguments Croots {R}.
+Arguments lecif {R}.

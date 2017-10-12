@@ -9,9 +9,9 @@ From mathcomp Require Import ssreflect ssrfun ssrbool eqtype seq choice.
 From mathcomp Require Import fintype algC ssrint ssrnum complex ssralg finfun.
 From mathcomp Require Import ssrnat div intdiv mxpoly rat bigop polydiv.
 From mathcomp Require Import fieldext poly finset separable polyorder.
-From structs Require Import Rstruct.
+From structs Require Import archi Rstruct.
 
-Import GRing.Theory Num.Def Num.Theory ArchimedeanTheory.
+Import GRing.Theory Num.Def Num.Theory Archi.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -28,75 +28,40 @@ Canonical complexR_choiceType := [choiceType of complexR].
 Canonical complexR_countype := [choiceType of complexR].
 Canonical complexR_zmodType := [zmodType of complexR].
 Canonical complexR_lmodType := Eval hnf in [lmodType R of complexR].
-Canonical complexR_ringType := [ringType of complexR].
-Canonical complexR_comRingType := [comRingType of complexR].
-Canonical complexR_lalgType := Eval hnf in [lalgType R of complexR].
-Canonical complexR_algType := Eval hnf in [algType R of complexR].
-Canonical complexR_unitRingType := [unitRingType of complexR].
-Canonical complexR_comUnitRingType := [comUnitRingType of complexR].
-Canonical complexR_unitAlgType := Eval hnf in [unitAlgType R of complexR].
-Canonical complexR_idomainType := [idomainType of complexR].
-Canonical complexR_fieldType := [fieldType of complexR].
-Canonical complexR_decDieldType := [decFieldType of complexR].
-Canonical complexR_closedFieldType := [closedFieldType of complexR].
-Canonical complexR_numDomainType := [numDomainType of complexR].
-Canonical complexR_numFieldType := [numFieldType of complexR].
-Canonical complexR_numClosedFieldType := [numClosedFieldType of complexR].
-Canonical complexR_numArchiDomainType := [numArchiDomainType of complexR].
-Canonical complexR_numArchiFieldType := [numArchiFieldType of complexR].
-Canonical complexR_numArchiClosedFieldType := [numArchiClosedFieldType of complexR].
+Canonical complexR_ringType := Eval hnf in [ringType of complexR].
+Canonical complexR_comRingType := Eval hnf in [comRingType of complexR].
 
-(*
-Canonical complexR_eqType := complex_eqType R_eqType.
-(*[eqType of complexR].*)
-Canonical complexR_choiceType := complex_choiceType R_choiceType.
-(*[choiceType of complexR].*)
-Canonical complexR_zmodType := ComplexField.complex_zmodType R_rcfType.
-(*[zmodType of complexR].*)
-Canonical complexR_lmodType := ComplexField.complex_lmodType R_rcfType.
-(*Eval hnf in [lmodType _ of complexR].*)
-Canonical complexR_ringType := ComplexField.complex_ringType R_rcfType.
-(*[ringType of complexR].*)
-Canonical complexR_comRingType := ComplexField.complex_comRingType R_rcfType.
-(*[comRingType of complexR].*)
-Canonical complexR_lalgType := ComplexField.complex_lalgType R_rcfType.
-Canonical complexR_algType := ComplexField.complex_algType R_rcfType.
-Canonical complexR_unitRingType := ComplexField.complex_unitRingType R_rcfType.
-(*[unitRingType of complexR].*)
-Canonical complexR_comUnitRingType := ComplexField.complex_comUnitRingType R_rcfType.
-(*[comUnitRingType of complexR].*)
-Canonical complexR_unitAlgType := ComplexField.complex_unitAlgType R_rcfType.
-Canonical complexR_idomainType := ComplexField.complex_idomainType R_rcfType.
-(*[idomainType of complexR].*)
-Canonical complexR_fieldType := ComplexField.complex_fieldType R_rcfType.
-(*[fieldType of complexR].*)
-Canonical complexR_decFieldType := complex_decField R_rcfType.
-(*[decFieldType of complexR].*)
-Canonical complexR_closedFieldType := complex_closedField R_rcfType.
-(*[closedFieldType of complexR].*)
-Canonical complexR_numDomainType := ComplexField.complex_numDomainType R_rcfType.
-(*[numDomainType of complexR].*)
-Canonical complexR_numFieldType := ComplexField.complex_numFieldType R_rcfType.
-(*[numFieldType of complexR].*)
-Canonical complexR_numClosedFieldType := 
-  complex_numClosedFieldType R_realClosedArchiFieldType.
-(*[numClosedFieldType of complexR].*)
-Canonical complexR_numArchiDomainType := 
-  complex_numArchiDomain R_realClosedArchiFieldType.
-(*[numArchiDomainType of complexR].*)
-Canonical complexR_numArchiFieldType := 
-  ComplexField.complex_numDomainType R_realClosedArchiFieldType.
-(*[numArchiFieldType of complexR].*)
-Canonical complexR_numArchiClosedFieldType := 
-  ComplexField.complex_numDomainType R_realClosedArchiFieldType.
-(*[numArchiClosedFieldType of complexR].*)
-*)
+(* These two should disappear once the canonical algebra structure is in the
+  complex.v file, and be replaced by a simple canonical ... *)
+Program Canonical complexR_lalgType := LalgType R complexR _.
+Next Obligation. 
+by move=> a [b c] [d e] /=; rewrite -!mulrA -mulrDr -mulrBr.
+Qed.
+
+Program Canonical complexR_algType := AlgType R complexR _.
+Next Obligation.
+by move=> a [b c] [d e] /=; simpc; rewrite ![_ * (a * _)]mulrCA -mulrDr -mulrBr.
+Qed.
+
+Canonical complexR_unitRingType := Eval hnf in [unitRingType of complexR].
+Canonical complexR_comUnitRingType := Eval hnf in [comUnitRingType of complexR].
+Canonical complexR_unitAlgType := Eval hnf in [unitAlgType R of complexR].
+Canonical complexR_idomainType := Eval hnf in [idomainType of complexR].
+Canonical complexR_fieldType := Eval hnf in [fieldType of complexR].
+Canonical complexR_decDieldType := Eval hnf in [decFieldType of complexR].
+Canonical complexR_closedFieldType := Eval hnf in [closedFieldType of complexR].
+Canonical complexR_numDomainType := Eval hnf in [numDomainType of complexR].
+Canonical complexR_numFieldType := Eval hnf in [numFieldType of complexR].
+Canonical complexR_numClosedFieldType := Eval hnf in [numClosedFieldType of complexR].
+Canonical complexR_archiNumDomainType := Eval hnf in [archiNumDomainType of complexR].
+Canonical complexR_archiNumFieldType := Eval hnf in [archiNumFieldType of complexR].
+Canonical complexR_archiNumClosedFieldType := Eval hnf in [archiNumClosedFieldType of complexR].
 
 (* Récupération des notations *)
 
 Notation Creal := (@Num.Def.Rreal complexR_numDomainType).
-Notation Cint := (@Cint complexR_numArchiDomainType).
-Notation Cnat := (@Cnat complexR_numArchiDomainType).
+Notation Cint := (@Cint complexR_archiNumDomainType).
+Notation Cnat := (@Cnat complexR_archiNumDomainType).
 
 (* Injections *)
 
@@ -118,9 +83,12 @@ Notation Re_R := (@complex.Re R_rcfType).
 Notation Im_R := (@complex.Im R_rcfType).
 Notation norm_R := ComplexField.normc.
 
+(* here again, the canonical refering to ComplexField should disappear *)
 Canonical Re_R_additive := [additive of Re_R].
+Canonical ComplexField.Re_linear.
 Canonical Re_R_linear := [linear of Re_R].
 Canonical Im_R_additive := [additive of Im_R].
+Canonical ComplexField.Im_linear.
 Canonical Im_R_linear := [linear of Im_R].
 
 Notation RtoC := (real_complex R : R -> complexR).
@@ -198,257 +166,11 @@ Proof. by case: y => [yr yi]; rewrite /GRing.scale /= /RtoC; simpc. Qed.
 
 Module ComplexTotalOrder.
 
+Search _ "bigmax".
+
 Section OrderDef.
 
 Implicit Types x y : complexR.
-
-(* def of total order *)
-Definition letc x y :=
-    ('Re x < 'Re y) || (('Re x == 'Re y) && ('Im x <= 'Im y)).
-
-Definition lttc x y :=
-    (letc x y) && (x != y).
-
-Lemma letcc : reflexive letc.
-Proof. by move=> x; rewrite /letc eq_refl lerr andbT orbT. Qed.
-Hint Resolve letcc.
-
-Lemma letc_trans : transitive letc.
-Proof.
-move=> x y z; rewrite /letc => /orP[Ryx | /andP[/eqP <- Iyx]].
-  move=> /orP[Rxz | /andP[/eqP <- _]].
-  + by apply/orP; left; apply: (ltr_trans Ryx Rxz).
-  + by rewrite Ryx.
-move=> /orP[Ryz | /andP[/eqP <- Ixz]].
-+ by rewrite Ryz.
-+ by rewrite eq_refl (ler_trans Iyx Ixz) andbT orbT.
-Qed.
-
-Lemma letc_asym : antisymmetric letc.
-Proof.
-move=> x y /andP[]; rewrite /letc => /orP[Rxy | /andP[/eqP Rxy Ixy /=]].
-  move=> /orP[ | /andP[]].
-  + by rewrite ltr_gtF.
-  + by rewrite (gtr_eqF Rxy).
-move=> /orP[ | /andP[/eqP Ryx Iyx]].
-+ by rewrite Rxy ltrr.
-+ apply/eqP; rewrite eq_C -Ryx eq_refl andTb.
-  by apply/eqP; apply: ler_asym; rewrite Ixy Iyx.
-Qed.
-
-Lemma lttc_neqAle x y :
-  (lttc x y) = (x != y) && (letc x y).
-Proof. by rewrite /lttc andbC. Qed.
-
-Lemma letc_eqVlt x y :
-  (letc x y) = (x == y) || (lttc x y).
-Proof.
-rewrite lttc_neqAle.
-case: (boolP (x == y)) => [/eqP -> | _ //=].
-by rewrite orTb letcc.
-Qed.
-
-Lemma lttcNge x y : lttc x y = ~~ (letc y x).
-Proof. 
-rewrite lttc_neqAle eq_C /letc !negb_or !negb_and.
-rewrite -real_ltrNge -?real_lerNgt ?ler_eqVlt ?Creal_Re ?Creal_Im //.
-have [ | | _] := (real_ltrgtP (Creal_Re x) (Creal_Re y)); rewrite //=.
-by have [ | | ] := (real_ltrgtP (Creal_Im x) (Creal_Im y)).
-Qed.
-
-Lemma letcNgt x y : letc x y = ~~ (lttc y x).
-Proof. by rewrite lttcNge negbK. Qed.
-
-Lemma lttcc x : lttc x x = false.
-Proof. by rewrite /lttc eq_refl /= andbF. Qed.
-
-Lemma lttc_trans : transitive lttc.
-Proof.
-move=> y x z; rewrite /lttc_neqAle => /andP [le_xy _].
-rewrite !lttcNge => /negP le_zy; apply/negP => le_zx.
-by apply: le_zy; apply: (letc_trans le_zx le_xy).
-Qed.
-
-Lemma neq_lttc (x y : R[i]) :
-  (x != y) = (lttc x y) || (lttc y x).
-Proof.
-rewrite !lttcNge -negb_and; congr (~~ _).
-apply/idP/idP => [/eqP -> | H_anti].
-  by rewrite andbb.
-by rewrite eq_sym; apply/eqP; apply: letc_asym.
-Qed.
-
-Lemma eqc_letc x y : (x == y) = (letc x y && letc y x).
-Proof. by apply/eqP/idP=> [->|/letc_asym]; rewrite ?letcc. Qed.
-
-Lemma letc_total : total letc.
-Proof. by move=> x y; rewrite letc_eqVlt lttcNge -orbA orNb orbT. Qed.
-
-Lemma lttc_le_trans y x z : lttc x y -> letc y z -> lttc x z.
-Proof.
-move=> lt_xy; rewrite letc_eqVlt => /orP [/eqP <- // | ].
-by apply: lttc_trans.
-Qed.
-
-Lemma letc_lt_trans y x z : letc x y -> lttc y z -> lttc x z.
-Proof. by rewrite letc_eqVlt => /orP [/eqP <- // | ]; apply: lttc_trans. Qed.
-
-Lemma lttc_eqF x y : lttc x y -> (x == y) = false.
-Proof. by rewrite /lttc => /andP[ _ ] /negbTE. Qed.
-
-
-(* Monotony of addition *)
-Lemma letc_add2l x : {mono +%R x : y z / letc y z}.
-Proof.
-move=> y z; rewrite /letc !raddfD /= ltr_add2l ler_add2l. 
-by rewrite -subr_eq0 opprD addrAC addNKr addrC subr_eq0.
-Qed.
-
-Lemma letc_add2r x : {mono +%R^~ x : y z / letc y z}.
-Proof. by move=> y z /=; rewrite ![_ + x]addrC letc_add2l. Qed.
-
-Lemma mono_inj f : {mono f : x y / letc x y} -> injective f.
-Proof. by move=> mf x y /eqP; rewrite eqc_letc !mf -eqc_letc=> /eqP. Qed.
-
-Lemma letcW_mono f : {mono f : x y / letc x y} -> {mono f : x y / lttc x y}.
-Proof. by move=> mf x y; rewrite !lttc_neqAle mf (inj_eq (mono_inj mf)). Qed.
-
-Lemma letcW_mono_Cto (R' : eqType) (f : complexR -> R') (g : rel R') :
-  injective f ->
-  {mono f : x y / letc x y >-> g x y} -> 
-  {mono f : x y / lttc x y >-> (x != y) && g x y}.
-Proof. by move=> inj_f mf x y /=; rewrite lttc_neqAle mf (inj_eq inj_f). Qed.
-
-Lemma lttc_add2r z x y : lttc (x + z) (y + z) = lttc x y.
-Proof. by rewrite (letcW_mono (letc_add2r _)). Qed.
-
-Lemma lttc_add2l z x y : lttc (z + x) (z + y) = lttc x y.
-Proof. by rewrite (letcW_mono (letc_add2l _)). Qed.
-
-Lemma letc_add x y z t : letc x y -> letc z t -> letc (x + z) (y + t).
-Proof. 
-by move=> lxy lzt; rewrite (@letc_trans (y + z)) ?letc_add2l ?letc_add2r. 
-Qed.
-
-Lemma lttc_add x y z t : lttc x y -> lttc z t -> lttc (x + z) (y + t).
-Proof. 
-by move=> lxy lzt; rewrite (@lttc_trans (y + z)) ?lttc_add2l ?lttc_add2r. 
-Qed.
-
-Lemma letc_sum (I : Type) (r : seq I) (P : pred I) (F G : I -> complexR) :
-  (forall i : I, P i -> letc (F i) (G i)) -> 
-  letc (\sum_(i <- r | P i) F i) (\sum_(i <- r | P i) G i).
-Proof. by exact: (big_ind2 _ (letcc _) letc_add). Qed.
-
-(* changer l'énoncé pour la size *)
-Lemma lttc_sum (I : Type) (r : seq I) (F G : I -> complexR) :
-  (0 < size r)%N -> (forall i : I, lttc (F i) (G i)) -> 
-  lttc (\sum_(i <- r) F i) (\sum_(i <- r) G i).
-Proof.
-case: r => [// | x r _ Hi]; rewrite big_cons big_cons.
-apply: (@lttc_le_trans (G x + \sum_(j <- r) F j)); first by rewrite lttc_add2r.
-by rewrite letc_add2l; apply: letc_sum => i _; rewrite letc_eqVlt Hi orbT.
-Qed.
-
-(* letc_iff *)
-Definition letcif (x y : complexR) (C : bool) : Prop :=
-    ((letc x y) * ((x == y) = C))%type.
-
-Definition letc_of_leif x y C (le_xy : letcif x y C) := le_xy.1 : letc x y.
-Coercion letc_of_leif : letcif >-> is_true.
-
-Lemma letcifP x y C : reflect (letcif x y C) (if C then x == y else lttc x y).
-Proof.
-rewrite /letcif letc_eqVlt; apply: (iffP idP)=> [|[]].
-  by case: C => [/eqP->|lxy]; rewrite ?eqxx // lxy lttc_eqF.
-by move=> /orP[/eqP->|lxy] <-; rewrite ?eqxx // lttc_eqF.
-Qed.
-
-Lemma letcif_refl x C : reflect (letcif x x C) C.
-Proof. by apply: (iffP idP) => [-> | <-] //; split; rewrite ?eqxx. Qed.
-
-Lemma letcif_trans x1 x2 x3 C12 C23 :
-  letcif x1 x2 C12 -> letcif x2 x3 C23 -> letcif x1 x3 (C12 && C23).
-Proof.
-move=> ltx12 ltx23; apply/letcifP; rewrite -ltx12.
-case eqx12: (x1 == x2).
-  by rewrite (eqP eqx12) lttc_neqAle !ltx23 andbT; case C23.
-by rewrite (@lttc_le_trans x2) ?ltx23 // lttc_neqAle eqx12 ltx12.
-Qed.
-
-Lemma letcif_le x y : letc x y -> letcif x y (letc y x).
-Proof. by move=> lexy; split=> //; rewrite eqc_letc lexy. Qed.
-
-Lemma letcif_eq x y : letc x y -> letcif x y (x == y).
-Proof. by []. Qed.
-
-Lemma getc_letcif x y C : letcif x y C -> letc y x = C.
-Proof. by case=> le_xy; rewrite eqc_letc le_xy. Qed.
-
-Lemma lttc_letcif x y C : letcif x y C -> (lttc x y) = ~~ C.
-Proof. by move=> le_xy; rewrite lttc_neqAle !le_xy andbT. Qed.
-
-Lemma mono_letcif (f : complexR -> complexR) C :
-    {mono f : x y / letc x y} ->
-  forall x y, (letcif (f x) (f y) C) = (letcif x y C).
-Proof. by move=> mf x y; rewrite /letcif mf (inj_eq (mono_inj _)). Qed.
-
-Lemma letcif_add x1 y1 C1 x2 y2 C2 :
-    letcif x1 y1 C1 -> letcif x2 y2 C2 ->
-  letcif (x1 + x2) (y1 + y2) (C1 && C2).
-Proof.
-rewrite -(mono_letcif _ (letc_add2r x2)) -(mono_letcif C2 (letc_add2l y1)).
-exact: letcif_trans.
-Qed.
-
-Lemma letcif_sum (I : finType) (P C : pred I) (E1 E2 : I -> complexR) :
-    (forall i, P i -> letcif (E1 i) (E2 i) (C i)) ->
-  letcif (\sum_(i | P i) E1 i) (\sum_(i | P i) E2 i) [forall (i | P i), C i].
-Proof.
-move=> leE12; rewrite -big_andE.
-elim/big_rec3: _ => [|i Ci m2 m1 /leE12]; first by rewrite /letcif letcc eqxx.
-exact: letcif_add.
-Qed.
-
-
-(* max *)
-Definition maxc x y := if (letc x y) then y else x.
-
-Lemma maxcA : associative maxc.
-Proof.
-move=> a b c; rewrite /maxc.
-case: (boolP (letc b c)) => [Hbc | /negbTE Hbc].
-  case: (boolP (letc a b)) => [Hab | //].
-  by rewrite Hbc (letc_trans Hab Hbc).
-case: (boolP (letc a b)) => [Hab | ]; first by rewrite Hbc.  
-rewrite -lttcNge => Hab; apply/eqP; rewrite eq_sym; apply/eqP.
-apply: ifF; apply/negbTE; rewrite -lttcNge.
-by apply: (lttc_trans _ Hab); rewrite lttcNge Hbc.
-Qed.
-
-Lemma maxc_addl : left_distributive +%R maxc.
-Proof. by move=> x y z; rewrite /maxc /= letc_add2r; case: ifP => _. Qed.
-
-Lemma maxc_addr : right_distributive +%R maxc.
-Proof. by move=> x y z; rewrite ![x + _]addrC maxc_addl. Qed.
-
-Lemma maxcc x : maxc x x = x.
-Proof. by rewrite /maxc letcc. Qed.
-
-Lemma maxcC : commutative maxc.
-Proof.
-move=> x y; rewrite /maxc; case: (boolP (letc x y)).
-  rewrite letc_eqVlt => /orP [/eqP -> | ]; first by rewrite letcc.
-  by rewrite lttcNge => /negbTE ->.
-by rewrite -lttcNge lttc_neqAle => /andP[_ ->].
-Qed.
-
-Lemma maxcl x y : letc x (maxc x y).
-Proof. by rewrite /maxc; case: (boolP (letc x y)). Qed.
-
-Lemma maxcr x y : letc y (maxc x y).
-Proof. by rewrite maxcC maxcl. Qed.
-
 
 (* bigop pour le max pour des listes non vides ? *)
 Definition bigmaxc x0 lc :=

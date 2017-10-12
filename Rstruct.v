@@ -24,6 +24,7 @@ Require Import Rtrigo1 Reals.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
 From mathcomp Require Import choice bigop ssralg fintype poly.
 From mathcomp Require Import mxpoly ssrnum finfun.
+From structs Require Import archi.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -302,10 +303,10 @@ rewrite /Rminus Rplus_assoc [- _ + _]Rplus_comm -Rplus_assoc -!/(Rminus _ _).
 exact: Rle_minus.
 Qed.
 
-Canonical Structure R_numArchiDomainType := NumArchiDomainType R Rarchimedean_axiom.
-Canonical Structure R_numArchiFieldType := [numArchiFieldType of R].
-Canonical Structure R_realArchiDomainType := [realArchiDomainType of R].
-Canonical Structure R_realArchiFieldType := [realArchiFieldType of R].
+Canonical Structure R_archiNumDomainType := ArchiNumDomainType R Rarchimedean_axiom.
+Canonical Structure R_archiNumFieldType := [archiNumFieldType of R].
+Canonical Structure R_archiRealDomainType := [archiRealDomainType of R].
+Canonical Structure R_archiRealFieldType := [archiRealFieldType of R].
 
  
 (** Here are the lemmas that we will use to prove that R has
@@ -370,7 +371,7 @@ by exists esp; split=> // y [].
 Qed.
  
 Canonical Structure R_rcfType := RcfType R Rreal_closed_axiom.
-Canonical Structure R_realClosedArchiFieldType := [realClosedArchiFieldType of R].
+Canonical Structure R_archiRcfType := [archiRcfType of R].
 
 
 (* proprietes utiles de l'exp *)
