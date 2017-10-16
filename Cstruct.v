@@ -11,7 +11,7 @@ From mathcomp Require Import ssrnat div intdiv mxpoly rat bigop polydiv.
 From mathcomp Require Import fieldext poly finset separable polyorder.
 From structs Require Import archi Rstruct.
 
-Import GRing.Theory Num.Def Num.Theory Archi.
+Import GRing.Theory Num.Def Num.Theory Archi.Theory.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -164,254 +164,11 @@ Lemma CscaleE (x : R) (y : complexR) :
   x *: y = RtoC x * y.
 Proof. by case: y => [yr yi]; rewrite /GRing.scale /= /RtoC; simpc. Qed.
 
-Module ComplexTotalOrder.
-
-Search _ "bigmax".
-
-Section OrderDef.
-
-Implicit Types x y : complexR.
-
-(* bigop pour le max pour des listes non vides ? *)
-Definition bigmaxc x0 lc :=
-  foldr maxc (head x0 lc) (behead lc).
-
-Lemma bigmaxc_nil x0 : bigmaxc x0 [::] = x0.
-Proof. by rewrite /bigmaxc. Qed.
-
-Lemma bigmaxc_un x0 x :
-  bigmaxc x0 [:: x] = x.
-Proof. by rewrite /bigmaxc. Qed.
-
-Lemma bigmaxc_cons x0 x y lc :
-  bigmaxc x0 (x :: y :: lc) = maxc x (bigmaxc x0 (y :: lc)).
-Proof.
-rewrite /bigmaxc /=; elim: lc => [/= | a lc /=].
-  by rewrite maxcC.
-set b := foldr _ _ _; set c := foldr _ _ _ => H.
-by rewrite [maxc a b]maxcC maxcA H -maxcA (maxcC c a).
-Qed.
-
-Lemma bigmaxc_letc x0 lc i :
-  (i < size lc)%N -> letc (nth x0 lc i) (bigmaxc x0 lc).
-Proof.
-case: lc i => [i | x lc]; first by rewrite nth_nil bigmaxc_nil letcc.
-elim: lc x => [x i /= | x lc /= ihlc y i i_size].
-  by rewrite ltnS leqn0 => /eqP ->; rewrite nth0 bigmaxc_un /=.
-rewrite bigmaxc_cons /=; case: i i_size => [_ /= | i]; first by rewrite maxcl.
-rewrite ltnS /=; move/(ihlc x); move/(letc_trans)=> H; apply: H.
-by rewrite maxcr.
-Qed.
-
-(* Compatibilité avec l'addition *)
-Lemma bigmaxc_addr x0 lc x :
-  bigmaxc (x0 + x) (map (fun y => y + x) lc) = (bigmaxc x0 lc) + x.
-Proof.
-case: lc => [/= | y lc]; first by rewrite bigmaxc_nil.
-elim: lc y => [y | y lc ihlc z]; first by rewrite /= !bigmaxc_un.
-by rewrite map_cons !bigmaxc_cons ihlc maxc_addl.
-Qed.
-
-Lemma bigmaxc_index x0 lc :
-  (0 < size lc)%N -> (index (bigmaxc x0 lc) lc < size lc)%N.
-Proof.
-case: lc => [//= | x l _].
-elim: l x => [x | x lc]; first by rewrite bigmaxc_un /= eq_refl.
-move/(_ x); set z := bigmaxc _ _ => /= ihl y; rewrite bigmaxc_cons /maxc -/z.
-case: (letc y z); last by rewrite eq_refl.
-by case: (y == z); rewrite //.
-Qed.
-
-Lemma bigmaxc_mem x0 lc :
-  (0 < size lc)%N -> bigmaxc x0 lc \in lc.
-Proof. by move/(bigmaxc_index x0); rewrite index_mem. Qed.
-
-Lemma bigmaxc_leqP x0 lc x :
-  (0 < size lc)%N ->
-  reflect (forall i, (i < size lc)%N -> letc (nth x0 lc i) x) (letc (bigmaxc x0 lc) x).
-Proof.
-move=> lc_size; apply: (iffP idP) => [le_x i i_size | H].
-  by apply: (letc_trans _ le_x); apply: bigmaxc_letc.
-by move/(nthP x0): (bigmaxc_mem x0 lc_size) => [i i_size <-]; apply: H.
-Qed.
-
-Lemma bigmaxcP x0 lc x :
-  (x \in lc /\ forall i, (i < size lc) %N -> letc (nth x0 lc i) x) -> (bigmaxc x0 lc = x).
-Proof.
-move=> [] /(nthP x0) [] j j_size j_nth x_letc; apply: letc_asym; apply/andP; split.
-  by apply/bigmaxc_leqP => //; apply: (leq_trans _ j_size).
-by rewrite -j_nth (bigmaxc_letc _ j_size).
-Qed.
-
-(* surement à supprimer à la fin 
-Lemma bigmaxc_lttc x0 lc :
-  uniq lc -> forall i, (i < size lc)%N -> (i != index (bigmaxc x0 lc) lc)
-    -> lttc (nth x0 lc i) (bigmaxc x0 lc).
-Proof.
-move=> lc_uniq Hi size_i /negP neq_i.
-rewrite lttc_neqAle (bigmaxc_letc _ size_i) andbT.
-apply/negP => /eqP H; apply: neq_i; rewrite -H eq_sym; apply/eqP.
-by apply: index_uniq.
-Qed. *)
-
-Lemma bigmaxc_letcif x0 lc :
-  uniq lc -> forall i, (i < size lc)%N ->
-     letcif (nth x0 lc i) (bigmaxc x0 lc) (i == index (bigmaxc x0 lc) lc).
-Proof.
-move=> lc_uniq i i_size; rewrite /letcif (bigmaxc_letc _ i_size).
-rewrite -(nth_uniq x0 i_size (bigmaxc_index _ (leq_trans _ i_size)) lc_uniq) //.
-rewrite nth_index //.
-by apply: bigmaxc_mem; apply: (leq_trans _ i_size).
-Qed.
-
-
-(* bigop pour le max pour des listes non vides ? *)
-Definition bmaxf n (f : {ffun 'I_n.+1 -> complexR}) :=
-  bigmaxc (f ord0) (codom f).
-
-Lemma bmaxf_letc n (f : {ffun 'I_n.+1 -> complexR}) i :
-  letc (f i) (bmaxf f).
-Proof.
-move: (@bigmaxc_letc (f ord0) (codom f) (nat_of_ord i)).
-rewrite /bmaxf size_codom card_ord => H; move: (ltn_ord i); move/H.
-suff -> : nth (f ord0) (codom f) i = f i; first by [].
-by rewrite /codom (nth_map ord0) ?size_enum_ord // nth_ord_enum.
-Qed.
-
-Lemma bmaxf_index n (f : {ffun 'I_n.+1 -> complexR}) :
-  (index (bmaxf f) (codom f) < n.+1)%N.
-Proof.
-rewrite /bmaxf.
-have {6}-> : n.+1 = size (codom f) by rewrite size_codom card_ord.
-by apply: bigmaxc_index; rewrite size_codom card_ord.
-Qed.
-
-Definition index_bmaxf n f := Ordinal (@bmaxf_index n f).
-
-Lemma ordnat i n (ord_i : (i < n)%N) :
-  i = nat_of_ord (Ordinal ord_i).
-Proof. by []. Qed.
-
-Lemma eq_index_bmaxf n (f : {ffun 'I_n.+1 -> complexR}) :
-  f (index_bmaxf f) = bmaxf f.
-Proof.
-move: (bmaxf_index f).
-rewrite -{3}[n.+1]card_ord -(size_codom f) index_mem.
-move/(nth_index (f ord0)) => <-; rewrite (nth_map ord0).
-  by rewrite (ordnat (bmaxf_index _)) /index_bmaxf nth_ord_enum.
-by rewrite size_enum_ord; apply: bmaxf_index.
-Qed.
-
-Lemma bmaxf_letcif n (f : {ffun 'I_n.+1 -> complexR}) :
-  injective f -> forall i,
-     letcif (f i) (bmaxf f) (i == index_bmaxf f).
-Proof.
-by move=> inj_f i; rewrite /letcif bmaxf_letc -(inj_eq inj_f) eq_index_bmaxf.
-Qed.
-
-(*
-Lemma bmaxf_lttc n (f : {ffun 'I_n.+1 -> complexR}) :
-  injective f -> forall i, lttc (f i) (bmaxf f) = (index_bmaxf f != i).
-Proof.
-move=> inj_f i; rewrite /lttc bmaxf_letc andTb eq_sym.
-apply/idP/idP => /negP Hneg; apply/negP => /eqP Heq; apply: Hneg; apply/eqP.
-  by rewrite -eq_index_bmaxf Heq.
-by apply: inj_f; rewrite eq_index_bmaxf.
-Qed.
-*)
-
-
-(*
-(* Compatibilité avec l'addition *)
-Lemma bigmaxc_addr x0 lc x :
-  bigmaxc (x0 + x) (map (fun y => y + x) lc) = (bigmaxc x0 lc) + x.
-Proof.
-case: lc => [/= | y lc]; first by rewrite bigmaxc_nil.
-elim: lc y => [y | y lc ihlc z]; first by rewrite /= !bigmaxc_un.
-by rewrite map_cons !bigmaxc_cons ihlc maxc_addl.
-Qed.
-
-Lemma bigmaxc_index x0 lc :
-  (0 < size lc)%N -> (index (bigmaxc x0 lc) lc < size lc)%N.
-Proof.
-case: lc => [//= | x l _].
-elim: l x => [x | x lc]; first by rewrite bigmaxc_un /= eq_refl.
-move/(_ x); set z := bigmaxc _ _ => /= ihl y; rewrite bigmaxc_cons /maxc -/z.
-case: (letc y z); last by rewrite eq_refl.
-by case: (y == z); rewrite //.
-Qed.
-
-Lemma bigmaxc_mem x0 lc :
-  (0 < size lc)%N -> bigmaxc x0 lc \in lc.
-Proof. by move/(bigmaxc_index x0); rewrite index_mem. Qed.
-
-Lemma bigmaxc_leqP x0 lc x :
-  (0 < size lc)%N ->
-  reflect (forall i, (i < size lc)%N -> letc (nth x0 lc i) x) (letc (bigmaxc x0 lc) x).
-Proof.
-move=> lc_size; apply: (iffP idP) => [le_x i i_size | H].
-  by apply: (letc_trans _ le_x); apply: bigmaxc_letc.
-by move/(nthP x0): (bigmaxc_mem x0 lc_size) => [i i_size <-]; apply: H.
-Qed.
-
-Lemma bigmaxcP x0 lc x :
-  (x \in lc /\ forall i, (i < size lc) %N -> letc (nth x0 lc i) x) -> (bigmaxc x0 lc = x).
-Proof.
-move=> [] /(nthP x0) [] j j_size j_nth x_letc; apply: letc_asym; apply/andP; split.
-  by apply/bigmaxc_leqP => //; apply: (leq_trans _ j_size).
-by rewrite -j_nth (bigmaxc_letc _ j_size).
-Qed.
-
-Lemma bigmaxc_lttc x0 lc :
-  uniq lc -> forall i, (i < size lc)%N -> (i != index (bigmaxc x0 lc) lc)
-    -> lttc (nth x0 lc i) (bigmaxc x0 lc).
-Proof.
-move=> lc_uniq Hi size_i /negP neq_i.
-rewrite lttc_neqAle (bigmaxc_letc _ size_i) andbT.
-apply/negP => /eqP H; apply: neq_i; rewrite -H eq_sym; apply/eqP.
-by apply: index_uniq.
-Qed.*)
-
-(* compatibilité opération produit monome : voir formule exacte *)
-(* bigmax lttc ? surement mieux *)
-
-End OrderDef.
-
-End ComplexTotalOrder.
-
-
-
-
-
-
-
-
 
 Section MinPoly.
 
 Local Notation "x 'is_algebraic'" := (algebraicOver QtoC x)
   (at level 55).
- (*
-Lemma poly_caract_root (F E : fieldType) (f : {rmorphism F -> E}) x : 
-    algebraicOver f x -> x != 0 -> 
-    {p : {poly F} | [&& p \is monic, root (map_poly f p) x & p`_0 != 0]}.
-Proof.
-move=> /integral_algebraic /sig2W[p pmonic proot] xneq0.
-wlog p_0: p proot pmonic / p`_0 != 0=> [hwlog|]; last by exists p; apply/and3P.
-have pneq0 : p != 0 by rewrite monic_neq0.
-About multiplicity_XsubC.
-have [n ] := multiplicity_XsubC p 0
-/implyP /(_ pneq0) rootqN0 p_eq]] := multiplicity_XsubC p 0.
-move: pneq0 proot pmonic.
-rewrite p_eq rmorphM rootM rmorphX rmorphB rmorph0 /= map_polyX => pn0 pr pm.
-have qmonic : q \is monic by move: pm; rewrite monicMr ?monic_exp ?monicXsubC.
-have qn : q`_0 != 0 by rewrite -horner_coef0.
-have qr : root (map_poly f q) x.
-  move: pr; case: {p_eq pn0 pm} n => [|n] .
-    by rewrite expr0 rootC oner_eq0 orbF.
-  by rewrite rmorph0 root_exp_XsubC (negPf xneq0) orbF.
-exact: (hwlog q).
-Qed.*)
 
 Lemma separable_polyZ (R : idomainType) (p : {poly R}) (a : R) : 
     a != 0 -> separable_poly (a *: p) = separable_poly p.
@@ -439,18 +196,34 @@ have lc_neq0 : lead_coef p_ != 0.
 by rewrite /psep scale_poly_eq0 negb_or lc_neq0 andTb dvdp_div_eq0 ?dvdp_gcdl.
 Qed.
 
-(*
-Lemma psep_monic (R : fieldType) (p : {poly R}) :
-  p \is monic -> psep p \is monic.
+(* :TODO: remove once the changes are made in polyorder *)
+Lemma size_deriv (R : numDomainType) (p : {poly R}) : size p^`() = (size p).-1.
 Proof.
-move=> monic_p; pose p_ := gcdp p (deriv p).
-have lc_neq0 : lead_coef p_ != 0.
-  by rewrite lead_coef_eq0 gcdp_eq0 negb_and monic_neq0.
-have p_monic : (lead_coef p_)^-1 *: p_ \is monic.
-  by apply/monicP; rewrite lead_coefZ mulrC mulfV.
-rewrite -(monicMr _ p_monic) /psep -/p_ -scalerCA scalerA mulrC mulfV //.
-by rewrite scale1r divpK // /p_ dvdp_gcdl.
-Qed.*)
+have [lep1|lt1p] := leqP (size p) 1.
+  by rewrite {1}[p]size1_polyC // derivC size_poly0 -subn1 (eqnP lep1).
+rewrite size_poly_eq // mulrn_eq0 -subn2 -subSn // subn2.
+by rewrite lead_coef_eq0 -size_poly_eq0 -(subnKC lt1p).
+Qed.
+
+(* :TODO: remove once the changes are made in polyorder *)
+Lemma mu_deriv (R : numDomainType) : forall x (p : {poly R}), root p x ->
+  \mu_x (p^`()) = (\mu_x p - 1)%N.
+Proof.
+move=> x p px0; have [-> | nz_p] := eqVneq p 0; first by rewrite derivC mu0.
+have [q nz_qx Dp] := mu_spec x nz_p.
+case Dm: (\mu_x p) => [|m]; first by rewrite Dp Dm mulr1 (negPf nz_qx) in px0.
+rewrite subn1 Dp Dm !derivCE exprS mul1r mulrnAr -mulrnAl mulrA -mulrDl.
+rewrite cofactor_XsubC_mu // rootE !(hornerE, hornerMn) subrr mulr0 add0r.
+by rewrite mulrn_eq0.
+Qed.
+
+(* :TODO: remove once the changes are made in polyorder *)
+Lemma mu_deriv_root (R : numDomainType) : 
+  forall x (p : {poly R}), p != 0 -> root p x ->
+  \mu_x p  = (\mu_x (p^`()) + 1)%N.
+Proof.
+by move=> x p p0 rpx; rewrite mu_deriv // subn1 addn1 prednK // mu_gt0.
+Qed.
 
 Lemma psep_root (F E : numFieldType) (f : {rmorphism F -> E}) (p : {poly F}) (x : E) :
   p != 0 -> root (map_poly f p) x -> root (map_poly f (psep p)) x.
@@ -475,6 +248,8 @@ rewrite -{2}H mu_mul ?leq_addl // H -size_poly_eq0 -deriv_map size_deriv.
 rewrite -lt0n -ltnS prednK; last by rewrite lt0n size_poly_eq0 map_poly_eq0.
 by apply: (root_size_gt1 _ root_p); rewrite map_poly_eq0.
 Qed.
+
+
 
 Section MinPoly_byalgC.
 
@@ -579,64 +354,6 @@ Qed.
 
 End MinPoly_byalgC.
 
-
-
-(*
-Lemma psep_coef0 (R : fieldType) (p : {poly R}) :
-  p`_0 != 0 -> (psep p)`_0 != 0.
-Proof.
-move=> p0.
-rewrite coefZ mulf_eq0 negb_or; apply/andP; split.
-  rewrite lead_coef_eq0 gcdp_eq0 negb_and; apply/orP; left.
-  by apply/negP => /eqP p_eq0; rewrite p_eq0 coef0 eq_refl in p0.
-apply/negP => /eqP eqr; move/negP : p0; apply. 
-rewrite -(divpK (dvdp_gcdl p (deriv p))) coefM big1 // => i _.
-have -> : nat_of_ord i = 0%N by apply/eqP; rewrite -leqn0 -ltnS.
-by rewrite eqr mul0r.
-Qed.
-*)
-(*
-Lemma poly_sep (F E : numFieldType) (f : {rmorphism F -> E}) 
-  (n : nat) (P : {ffun 'I_n -> {poly F}}) (x : {ffun 'I_n -> E}) :
-  (forall i, root (map_poly f (P i)) (x i)) -> 
-  (forall i, P i \is monic) -> exists p : {poly F},
-  [&& p \is monic, [forall i, root (map_poly f p) (x i)] & separable_poly p].
-Proof.
-move=> root_p monic_p.
-pose r := \prod_(i < n) P i.
-have r_neq0 : r != 0 by apply/prodf_neq0 => i _; rewrite monic_neq0.
-have monic_r : r \is monic by apply: monic_prod.
-have root_r i : root (map_poly f r) (x i).
-  apply/rootPt; rewrite rmorph_prod horner_prod; apply/prodf_eq0.
-  by exists i; rewrite //= (rootP (root_p i)).
-pose p_ := gcdp r (deriv r); pose lc_ := (lead_coef p_).
-have lc_neq0 : lc_ != 0.
-  by rewrite /lc_ lead_coef_eq0 gcdp_eq0 negb_and r_neq0.
-have lc_p_monic : lc_^-1 *: p_ \is monic.
-  by apply/monicP; rewrite lead_coefZ mulrC mulfV.
-exists (lc_ *: (r %/ p_)); apply/and3P; split.
-+ rewrite -(monicMr _ lc_p_monic) -scalerCA scalerA mulrC mulfV //.
-  by rewrite scale1r divpK // /p_ dvdp_gcdl.
-+ apply/forallP => i; rewrite map_polyZ; apply/rootP/eqP. 
-  rewrite hornerZ mulf_eq0; apply/orP; right; apply/eqP/rootP.
-  move: (divpK (dvdp_gcdl r (deriv r))); rewrite -/p_ => eq_p.
-  rewrite -mu_gt0; last first.
-    rewrite map_poly_eq0; apply/negP => /eqP H; rewrite H mul0r in eq_p.
-    by rewrite -eq_p eq_refl in r_neq0.
-  have rp_neq0 : (map_poly f (r %/ p_)) * (map_poly f p_) != 0. 
-    by rewrite -rmorphM eq_p map_poly_eq0.
-  rewrite -(ltn_add2r (\mu_(x i) (map_poly f p_))) add0n -mu_mul //.
-  rewrite -rmorphM /= divpK ?dvdp_gcdl //.
-  rewrite (mu_deriv_root _ (root_r i)) ?map_poly_eq0 // addn1 ltnS /p_ /=. 
-  rewrite gcdp_map deriv_map /=.
-  have H := (divpK (dvdp_gcdr (map_poly f r) (map_poly f r^`()))).
-  rewrite -{2}H mu_mul ?leq_addl // H -size_poly_eq0 -deriv_map size_deriv.
-  rewrite -lt0n -ltnS prednK; last by rewrite lt0n size_poly_eq0 map_poly_eq0.
-  by apply: (root_size_gt1 _ (root_r i)); rewrite map_poly_eq0.
-+ by rewrite separable_polyZ ?make_separable.
-Qed.
-*)
-
 Lemma ratr_eq0 (x : rat) : ((QtoC x) == (0: complexR)) = (x == 0).
 Proof.
 by rewrite -numq_eq0 mulf_eq0 invr_eq0 !intr_eq0 (negbTE (denq_neq0 x)) orbF.
@@ -705,77 +422,12 @@ exists (zprimitive q); split.
   by rewrite dvdp_rat_int [q in LHS]zpolyEprim dvdp_scalel ?zcontents_eq0.
 Qed.
 
-(*
-Lemma poly_caract_int (x : complexR) : x is_algebraic -> x != 0 ->
-    exists p : {poly int}, [&& (p != 0), root (map_poly ZtoC p) x,
-    (p`_0 != 0), (0 < lead_coef p) & separable_poly (map_poly ZtoC p)].
-Proof.
-move => algebraic_x xn0.
-have [r /andP[monr /andP[rootr r0_neq0]]] := (poly_caract_root algebraic_x xn0).
-have monp := (psep_monic monr).
-have rootp := (psep_root (monic_neq0 monr) rootr).
-have p0_neq0 := (psep_coef0 r0_neq0).
-have sepp := (psep_separable (monic_neq0 monr)).
-have : {q : {poly int} & {a : int_ZmodType | (0 < a) 
-     & psep r = a%:~R^-1 *: map_poly (intr : int -> rat) q}}.
-  have [p_ [a /negbTE a_neq0 eq_p_p_]] := rat_poly_scale (psep r).
-  have [a_gt0 | a_le0 | /eqP] := (ltrgt0P a); last by rewrite a_neq0.
-    by exists p_; exists a.
-  exists (- p_); exists (- a); rewrite ?oppr_gt0 //.
-  by rewrite !rmorphN invrN /= scaleNr scalerN opprK.
-move=> [p_ [a a_gt0 eq_p_p_]].
-have a_neq0 : ratr a%:~R != 0 :> complexR.
-  by rewrite ratr_int intr_eq0 lt0r_neq0.    
-have p_0_neq0 : p_`_0 != 0.
-  apply/negP => /eqP p_eq0; move/negP: p0_neq0; apply.
-  by rewrite eq_p_p_ coefZ coef_map p_eq0 mulr0.
-have p__neq0 : p_ != 0.
-  by apply/negP => /eqP p__eq0; move/negP: p_0_neq0; rewrite p__eq0 coef0.
-have eq_p__p : (map_poly intr p_) = a%:~R *: (psep r).
-  by rewrite eq_p_p_ scalerA mulfV ?scale1r // intr_eq0; apply: lt0r_neq0. 
-have lc_p_gt0 : (0 < (lead_coef p_)).
-  have H : (lead_coef p_)%:~R = a%:~R * lead_coef (psep r).
-    rewrite eq_p_p_ lead_coefZ lead_coef_map_eq ?intr_eq0 ?lead_coef_eq0 //.
-    by rewrite mulrA mulfV ?mul1r // intr_eq0; apply: (lt0r_neq0 a_gt0).
-  by rewrite -(ltr0z rat_numDomainType) H (monicP monp) mulr1 ltr0z. 
-have ZtoQtoC : QtoC \o intr =1 ZtoC by move=> y /=; rewrite ratr_int.
-have root_map_p : root (map_poly intr p_) x.
-  by rewrite -(eq_map_poly ZtoQtoC) map_poly_comp eq_p__p map_polyZ /= rootZ.
-exists p_; apply/and5P; split; rewrite //. 
-rewrite -(eq_map_poly ZtoQtoC) map_poly_comp eq_p__p map_polyZ /=.
-by rewrite (separable_polyZ _ a_neq0) separable_map.
-Qed.*)
-(*
-Lemma polyMinZ_subproof (x : complexR) : x is_algebraic -> x != 0 -> 
-    {p : {poly int} | [&& (p != 0), root (map_poly ZtoC p) x,
-    (p`_0 != 0), (0 < lead_coef p) & separable_poly (map_poly ZtoC p)]}.
-Proof.
-move => x_alg x_neq0.
-have [p /and5P] := (sigW (poly_caract_int x_alg x_neq0)).
-move => [p_neq0 rootp p0_neq0 lc_gt0 p_sep].
-exists p; apply/and5P; split; rewrite ?p_sep ?andbT //.
-Qed.
-
-Definition polyMinZ (x : complexR) (H : x is_algebraic) := 
-  match Sumbool.sumbool_of_bool(x != 0) with
-  |right _ => 'X
-  |left toto => sval(polyMinZ_subproof H toto) 
-  end.
-*)
-
 Definition polyMinZ (x : complexR) (H : x is_algebraic) :=
   sval (poly_caract_int H).
 
 Definition polyMin (x : complexR) (H : x is_algebraic) :=
   map_poly ZtoC (polyMinZ H).
 
-(*
-+ by rewrite map_poly_eq0_id0 ?intr_eq0 ?(lt0r_neq0 lc_gt0).
-+ by apply/polyOverP => i; rewrite coef_map /= Cint_int.
-+ by rewrite coef_map intr_eq0.
-by rewrite lead_coef_map_eq ?intr_eq0 ?ltr0z ?lt0r_neq0.
-Qed.
-*)
 
 Lemma polyMinZ_zcontents (x : complexR) (H : x is_algebraic) : 
     zcontents (polyMinZ H) = 1.
@@ -847,56 +499,6 @@ Proof.
 by rewrite /polyMin; apply/polyOverP => i; rewrite coef_map Cint_int.
 Qed.
 
-
-
-(*
-Lemma polyMinZ_coef0_neq0 (x : complexR) (H : x is_algebraic) :
-  ((polyMinZ H)`_0 == 0) = (x == 0).
-Proof.
-rewrite /polyMinZ.
-case : ((Sumbool.sumbool_of_bool (x != 0))) => [a | /eqP ->]; last first.
-  by rewrite coefX eq_refl.
-move: (svalP (polyMinZ_subproof H a)) => /and5P[_ _ /negbTE -> _ _].
-by apply: esym; apply/negP /negP.
-Qed.
-
-Lemma polyMin_coef0_neq0 (x : complexR) (H : x is_algebraic) :
-  ((polyMin H)`_0 == 0) = (x == 0).
-Proof.
-by rewrite coef_map intr_eq0 polyMinZ_coef0_neq0.
-Qed.
-*)
-
-
-
-
-(*
-Print coprimep.
-Pdiv.CommonIdomain.eqp_dvdl:
-  forall (R : idomainType) (d2 d1 p : {poly R}), d1 %= d2 -> (d1 %| p) = (d2 %| p)
-
-dvdp_rat_int: forall p q : {poly int_Ring}, (map_poly ZtoQ p %| map_poly ZtoQ q) = (p %| q)
-Search _ gcdp.
-Search _ size 1%N.
-mul_polyC: forall (R : ringType) (a : R) (p : {poly R}), a%:P * p = a *: p
-size1_polyC: forall (R : ringType) (p : {poly R}), (size p <= 1)%N -> p = (p`_0)%:P
-dvdp_gcd_idr: forall (R : idomainType) (m n : {poly R}), n %| m -> gcdp m n %= n
-leq_gcdpr: forall (R : idomainType) (p q : {poly R}), q != 0 -> (size (gcdp p q) <= size q)%N
-separable_root:
-  forall (R : idomainType) (p : {poly R}) (x : R),
-  separable_poly (p * ('X - x%:P)) = separable_poly p && ~~ root p x
-
-
-irredp_XsubC: forall (R : idomainType) (x : R), irreducible_poly ('X - x%:P)
-poly2_root: forall (F : fieldType) (p : {poly F}), size p = 2 -> {r : F | root p r}
-
-About poly_caract_int.
-
-About algebraic0.
-About sigW.
-Check (sigW (poly_caract_int (algebraic0 (ratr_rmorphism complexR_numFieldType)))).
-*)
-
 Lemma polyMinseq (n : nat) (f : {ffun 'I_n -> complexR}) :
   (forall i : 'I_n, f i is_algebraic) ->
   {p : {poly complexR} | [&& [forall i, root p (f i)],
@@ -946,69 +548,6 @@ by rewrite eq_p_ map_poly0 scaler0 in eq_P_p_; rewrite eq_P_p_ eq_refl in P_neq0
 Qed.
 
 
-(*
-Lemma polyMin_subproof (x : complexR) : x is_algebraic -> x != 0 -> 
-    {p : {poly int} | [&& (p != 0), root (map_poly ZtoC p) x,
-    (p`_0 != 0), (0 < lead_coef p) & separable_poly (map_poly ZtoC p)]}.
-Proof.
-move => x_alg x_neq0.
-have [p /and5P] := (sigW (poly_caract_int x_alg x_neq0)).
-move => [p_neq0 rootp p0_neq0 lc_gt0 p_sep].
-by exists p; rewrite p_neq0 rootp p0_neq0 lc_gt0 p_sep.
-Qed.
-
-Definition polyMin (x : complexR) (H : x is_algebraic) :=
-  match Sumbool.sumbool_of_bool(x != 0) with
-  |right _ => 'X
-  |left toto => sval(polyMin_subproof H toto) 
-  end.
-
-Lemma polyMin_neq0 (x : complexR) (H : x is_algebraic) : (polyMin H) != 0.
-Proof.
-rewrite /polyMin.
-case : ((Sumbool.sumbool_of_bool (x != 0))) => [a | _]; last first.
-  by rewrite polyX_eq0.
-by move: (svalP (polyMin_subproof H a)) => /and5P[].
-Qed.
-
-Lemma polyMin_root (x : complexR) (H : x is_algebraic) : 
-  root (map_poly ZtoC (polyMin H)) x.
-Proof.
-rewrite /polyMin.
-case : ((Sumbool.sumbool_of_bool (x != 0))) => [a | /eqP ->]; last first.
-  by rewrite map_polyX rootX.
-by move: (svalP (polyMin_subproof H a)) => /and5P[].
-Qed.
-
-Lemma polyMin_lcoef_gt0 (x : complexR) (H : x is_algebraic) : 
-  0 < lead_coef (polyMin H).
-Proof.
-rewrite /polyMin.
-case : ((Sumbool.sumbool_of_bool (x != 0))) => [a | _]; last first.
-  by rewrite lead_coefX.
-by move: (svalP (polyMin_subproof H a)) => /and5P[].
-Qed.
-
-Lemma polyMin_coef0_neq0 (x : complexR) (H : x is_algebraic) :
-  ((polyMin H)`_0 == 0) = (x == 0).
-Proof.
-rewrite /polyMin.
-case : ((Sumbool.sumbool_of_bool (x != 0))) => [a | /eqP ->]; last first.
-  by rewrite coefX eq_refl.
-move: (svalP (polyMin_subproof H a)) => /and5P[_ _ /negbTE -> _ _].
-by apply/eqP; rewrite eq_sym; apply/eqP/negbTE; rewrite a.
-Qed.
-
-Lemma polyMin_separable (x : complexR) (H : x is_algebraic) :
-  separable_poly (map_poly ZtoC (polyMin H)).
-Proof.
-rewrite /polyMin.
-case : ((Sumbool.sumbool_of_bool (x != 0))) => [a | _]; last first.
-  by rewrite /separable_poly deriv_map derivX rmorph1 coprimep1.
-by move: (svalP (polyMin_subproof H a)) => /and5P[].
-Qed.
-
-*)
 
 
 
@@ -1020,41 +559,3 @@ End MinPoly.
 
 
 
-
-
-(* Inutile ici ?
-Lemma Euler :
-  1 + Cexp (PI%:C * 'i) = 0.
-Proof.
-rewrite /Cexp ImiRe ReiNIm -complexr0 /= cos_PI sin_PI !complexr0.
-rewrite oppr0 exp_0 mul1r; apply/eqP.
-by rewrite eq_complex /= addr0 addrN eq_refl.
-Qed. *)
-
-(* Utile ?
-Lemma ReM (x : complexR) y :
-  Re_R (x * (RtoC y)) = (Re_R x) * y.
-Proof. by rewrite real_complexE; case: x => r i /=; rewrite !C_simpl. Qed.
-
-Lemma ImM (x : complexR) y :
-  Im (x * y%:C) = (Im x) * y.
-Proof.
-rewrite real_complexE; case: x => r i.
-by rewrite mulcalc /= mulr0 add0r.
-Qed.
-
-Lemma ReX (y : R) n :
-  Re (y%:C ^+ n) = y ^+ n.
-Proof.
-elim: n => [| n Ihn].
-  by rewrite !expr0 /=.  
-by rewrite !exprS mulrC ReM Ihn mulrC.
-Qed.
-
-Lemma ImX (y : R) n :
-  Im (y%:C ^+ n) = 0.
-Proof.
-elim: n => [| n Ihn].
-  by rewrite !expr0 /=.  
-by rewrite !exprS mulrC ImM Ihn mul0r.
-Qed. *)

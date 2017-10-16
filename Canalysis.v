@@ -4,34 +4,22 @@
  * You may distribute this file under the terms of the CeCILL-B license
  * -------------------------------------------------------------------- *)
 
-Require Import ssreflect ssrfun ssrbool eqtype seq choice fintype.
-Require Import bigop Reals ssralg ssrnum poly complex.
-Require Import ssrnat ssrint.
-Require Import Coquelicot Hierarchy.
-From structs Require Import Rstruct Cstruct.
+Require Import Reals.
+From mathcomp Require Import ssreflect ssrfun ssrbool eqtype seq choice fintype.
+From mathcomp Require Import bigop ssralg ssrnum poly complex.
+From mathcomp Require Import ssrnat ssrint.
+From Coquelicot Require Import Coquelicot Hierarchy.
+From structs Require Import Rstruct Cstruct archi.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Import Prenex Implicits.
 
 Open Scope ring_scope.
-Import GRing.Theory.
-Import Num.Theory ArchimedeanTheory.
-
-
-
-
-(*
-Local Notation RtoC := (complex.ComplexField.real_complex_rmorphism R_rcfType :
-           R -> complexR).
-
-Local Notation R2toC := (fun x y : R => (RtoC x) + 'i * (RtoC y)). *)
-
+Import GRing.Theory Num.Theory Archi.Theory.
 
 
 Section Cprop.
-
-(* Coercion RtoC : R >-> complexR. *)
 
 Lemma Ceq_dec (z1 z2 : complexR) : { z1 = z2 } + { z1 <> z2 }.
 Proof.
@@ -39,46 +27,28 @@ move: (@eqVneq complexR_eqType z1 z2) => [Heq | Hneq]; first by left.
 by right; apply: (@elimN _ (z1 == z2)) => //=; apply: eqP.
 Qed.
 
-(*
-Definition Crdiv (x y : complexR) := x / y.  
-Definition Crsub (x y : complexR) := x - y.
-
-Lemma Cpluscalc x y :
-  Cplus x y = (x.1 + y.1, x.2 + y.2).
-Proof. by done. Qed.
-
-Lemma Coppcalc x :
-  Copp x = (- x.1, -x.2).
-Proof. by done. Qed.
-*)
 End Cprop.
 
 Section Cstruct.
 
+(* Abelian Group *)
 Definition Cr_AbelianGroup_mixin :=
-  AbelianGroup.Mixin _ _ _ _
-    (@addrC complexR_zmodType) (@addrA complexR_zmodType) 
-    (@addr0 complexR_zmodType) (@addrN complexR_zmodType).
-
+  AbelianGroup.Mixin complexR _ _ _ (@addrC _) (@addrA _) (@addr0 _) (@addrN _).
 Canonical Cr_AbelianGroup :=
   AbelianGroup.Pack complexR Cr_AbelianGroup_mixin complexR.
 
 (* Ring *)
 Definition Cr_Ring_mixin :=
-  Ring.Mixin _ _ _ (@mulrA complexR_ringType)
-   (@mulr1 complexR_ringType) (@mul1r complexR_ringType) 
-    (@mulrDl complexR_ringType) (@mulrDr complexR_ringType).
-
+  Ring.Mixin Cr_AbelianGroup _ _ 
+  (@mulrA _) (@mulr1 _) (@mul1r _) (@mulrDl _) (@mulrDr _).
 Canonical Cr_Ring :=
   Ring.Pack complexR (Ring.Class _ Cr_AbelianGroup_mixin Cr_Ring_mixin) 
       complexR.
 
 (* Field *)
 Lemma Cr_field_theory : 
-  field_theory (@GRing.zero complexR_zmodType) (@GRing.one complexR_ringType) 
-  (@GRing.add complexR_zmodType) (@GRing.mul complexR_ringType) 
-  (fun x y => GRing.add x (GRing.opp y)) (@GRing.opp complexR_zmodType) 
-  (fun x y => GRing.mul x (GRing.inv y)) (@GRing.inv complexR_unitRingType) eq.
+  field_theory 0 1 +%R *%R (fun x y : complexR => x + (- y)) -%R 
+  (fun x y => x * y^-1) (@GRing.inv _) eq.
 constructor.
 + constructor.
   - by move=> x; rewrite add0r.
@@ -97,174 +67,62 @@ Qed.
 
 Add Field Cr_field_field : Cr_field_theory.
 
-(* UniformSpace *)
-Definition Cr_ball (x : complexR) (eps : R) (y : complexR) :=
-  ball (Re_R x) eps (Re_R y) /\ ball (Im_R x) eps (Im_R y).
 
-Lemma Cr_ball_center (x : complexR) (eps : posreal) :
-  Cr_ball x eps x.
-Proof. by split; apply ball_center. Qed.
-
-Lemma Cr_ball_sym (x y : complexR) (eps : R) :
-  Cr_ball x eps y -> Cr_ball y eps x.
-Proof. by move=> [Hr Hi]; split; apply: ball_sym. Qed.
-
-Lemma Cr_ball_triangle (x y z : complexR) (e1 e2 : R) :
-  Cr_ball x e1 y -> Cr_ball y e2 z -> Cr_ball x (e1 + e2) z.
-Proof.
-move=> [/= H1 H2] [/= H3 H4]; split; rewrite /=.
-apply: (ball_triangle _ _ _ _ _ H1 H3).
-apply: (ball_triangle _ _ _ _ _ H2 H4).
+(* AbsRing *)
+Program Definition Cr_AbsRing_mixin :=
+  AbsRing.Mixin Cr_Ring (@norm_R R_rcfType) _ _ _ _ _.
+Next Obligation. by rewrite /norm_R /= expr0n addr0 sqrtr0. Qed.
+Next Obligation. by rewrite /norm_R /= !sqrrN expr0n expr1n addr0 sqrtr1. Qed.
+Next Obligation.
+by move=> x y; apply/RleP; have /andP[_]:= (complex.ComplexField.lec_normD x y).
 Qed.
+Next Obligation. by move=> x y; apply/RleP; rewrite ComplexField.normcM. Qed.
+Next Obligation. by move=> x /ComplexField.eq0_normc ->. Qed.
 
-Lemma Cr_ball_le (x : complexR) (e1 e2 : R) :
-   Rle e1 e2 -> (forall y : complexR, Cr_ball x e1 y -> Cr_ball x e2 y).
-Proof. by move=> H y [/=H1 H2]; split; rewrite /=; apply: (ball_le _ e1). Qed.
+Canonical Cr_AbsRing :=
+  AbsRing.Pack complexR (AbsRing.Class _ _ Cr_AbsRing_mixin) complexR.
 
+(* Uniform Space *)
 Definition Cr_UniformSpace_mixin :=
-  UniformSpace.Mixin complexR _ Cr_ball_center Cr_ball_sym 
-      Cr_ball_triangle.
-
+  AbsRing_UniformSpace_mixin Cr_AbsRing.
 Canonical Cr_UniformSpace :=
   UniformSpace.Pack complexR Cr_UniformSpace_mixin complexR.
 
+(* Module Space *)
+Program Definition Cr_ModuleSpace_mixin :=
+  ModuleSpace.Mixin R_AbsRing Cr_AbsRing *:%R _ _ _ _.
+Next Obligation. by move=> x y u; rewrite scalerA. Qed.
+Next Obligation. by move=> u; rewrite scale1r. Qed.
+Next Obligation. by move=> x u v; rewrite scalerDr. Qed.
+Next Obligation. by move=> x y u; rewrite scalerDl. Qed.
 
+Canonical Cr_ModuleSpace :=
+  ModuleSpace.Pack R_Ring complexR 
+  (ModuleSpace.Class _ _ _ Cr_ModuleSpace_mixin) complexR.
 
-(* R - ModuleSpace *)(*
-Definition Cr_scal (x : R) (u : complexR) :=
-  (scal x (Re u)) +i* (scal x (Im u)).
-
-Lemma Cr_scal_assoc (x y : R) (u : complexR) :
-  Cr_scal x (Cr_scal y u) = Cr_scal (x * y) u.
-Proof.
-rewrite /Cr_scal /=; apply/eqP.
-by rewrite eq_complex /= !scal_assoc /mult /= !eq_refl.
-Qed.
-
-Lemma Cr_scal_one (u : complexR) :
-  Cr_scal 1 u = u.
-Proof.
-rewrite /Cr_scal /=; apply/eqP.
-by rewrite eq_complex /= !scal_one !eq_refl.
-Qed.
-
-Lemma Cr_scal_distr_l (x : R) (u v : complexR) :
-  Cr_scal x (u + v) = (Cr_scal x u) + (Cr_scal x v).
-Proof.
-rewrite /Cr_scal /=; apply/eqP.
-by rewrite eq_complex /= !raddfD /= !scal_distr_l !/plus /= !eq_refl.
-Qed.
-
-Lemma Cr_scal_distr_r (x y : R) (u : complexR) :
-  Cr_scal (x + y) u = (Cr_scal x u) + (Cr_scal y u).
-Proof.
-rewrite /Cr_scal /=; apply/eqP.
-by rewrite eq_complex /= !scal_distr_r !/plus /= !eq_refl.
-Qed.
-
-Definition Cr_R_ModuleSpace_mixin :=
-  ModuleSpace.Mixin R_Ring _ _ Cr_scal_assoc Cr_scal_one Cr_scal_distr_l 
-     Cr_scal_distr_r.
-
-Canonical Cr_R_ModuleSpace :=
-  ModuleSpace.Pack R_Ring complexR (ModuleSpace.Class _ _ _ Cr_R_ModuleSpace_mixin) complexR. *)
-
-Lemma Cr_scal_assoc (x y : R) (u : complexR) :
-  x *: (y *: u) = (x * y) *: u.
-Proof. by rewrite scalerA. Qed.
-
-Lemma Cr_scal_one (u : complexR) :
-  1 *: u = u.
-Proof. by rewrite scale1r. Qed.
-
-Lemma Cr_scal_distr_l (x : R) (u v : complexR) :
-  x *: (u + v) = (x *: u) + (x *: v).
-Proof. by rewrite scalerDr. Qed.
-
-Lemma Cr_scal_distr_r (x y : R) (u : complexR) :
-  (x + y) *: u = (x *: u) + (y *: u).
-Proof. by rewrite -scalerDl. Qed.
-
-Definition Cr_R_ModuleSpace_mixin :=
-  ModuleSpace.Mixin R_Ring _ _ Cr_scal_assoc Cr_scal_one Cr_scal_distr_l 
-     Cr_scal_distr_r.
-
-Canonical Cr_R_ModuleSpace :=
-  ModuleSpace.Pack R_Ring complexR (ModuleSpace.Class _ _ _ Cr_R_ModuleSpace_mixin) complexR.
-
-(* R - NormedModuleAux *)
-Canonical Cr_R_NormedModuleAux :=
+(* NormedModuleAux *)
+Canonical Cr_NormedModuleAux :=
   NormedModuleAux.Pack R_AbsRing complexR 
-    (NormedModuleAux.Class R_AbsRing _ (ModuleSpace.class _ Cr_R_ModuleSpace) 
+    (NormedModuleAux.Class R_AbsRing _ (ModuleSpace.class _ Cr_ModuleSpace) 
       (UniformSpace.class _)) complexR.
 
-Lemma Cr_scalE (x : R) (u : complexR) :
-   x *: u = RtoC x * u.
-Proof. by rewrite CscaleE. Qed.
-
-(* R - NormedModule *)
-(* TODO : move to Rstruct *)
-Lemma norm_sqr (x : R) : pow (Hierarchy.norm x) 2 = pow x 2.
-Proof.
-rewrite /norm /= /abs /= !Rmult_1_r -Rabs_mult Rabs_right //.
-by apply/Rle_ge/RleP/sqr_ge0.
+(* Normed Module *)
+Program Definition Cr_NormedModule_mixin :=
+  NormedModule.Mixin R_AbsRing Cr_NormedModuleAux 
+  (@norm_R R_rcfType) 1 _ _ _ _ _.
+Next Obligation. by apply: Cr_AbsRing_mixin_obligation_3. Qed.
+Next Obligation. move=> l x; apply/RleP; rewrite /scal /= CscaleE. 
+suff -> : abs l = norm_R (RtoC l) by rewrite ComplexField.normcM.
+by rewrite /abs /= expr0n addr0 sqrt_R ?sqrt_Rsqr_abs ?sqr_ge0.
 Qed.
+Next Obligation. by move=> x y e; rewrite /ball /= /AbsRing_ball /= /abs. Qed.
+Next Obligation.
+by move=> x y e; rewrite Rmult_mul mul1r /ball /= /AbsRing_ball /= /abs /=. Qed.
+Next Obligation. by apply: Cr_AbsRing_mixin_obligation_5. Qed.
 
-Lemma Cr_norm_triangle (x y : Cr_R_NormedModuleAux) :
-  Rle (norm_R (x + y)) ((norm_R x) + (norm_R y))%R.
-Proof. by apply/RleP; have /andP[_]:= (complex.ComplexField.lec_normD x y). Qed.
-
-Lemma Cr_norm_scal (l : R) (x : complexR) :
-  Rle (norm_R (l *: x)) (abs l * norm_R x)%R.
-Proof.
-move: x => [xr xi]; apply/RleP.
-rewrite /GRing.scale [_ _ _%C]/= /abs /= -sqrt_Rsqr_abs -sqrt_R ?sqr_ge0 //=.
-by rewrite /Rsqr Rmult_mul -expr2 -sqrtrM ?sqr_ge0 // !exprMn mulrDr.
-Qed.
-
-Lemma Cr_norm_compat1 (x y : complexR) (eps : R) :
-  Rlt (norm_R (y - x)) eps -> ball x eps y.
-Proof.
-case: x => [xr xi]; case: y => [yr yi] /=; rewrite sqrt_R; last first.
-  by apply/addr_ge0/sqr_ge0/sqr_ge0.
-move=> H.
-rewrite /ball /= /Cr_ball /=.
-move: (prod_norm_compat1 (xr, xi) (yr, yi) eps).
-rewrite {1}/ball /= /prod_ball /=; apply.
-rewrite /minus /plus /opp /= /prod_plus /=. 
-rewrite /plus /= /opp /= !Ropp_opp !Rplus_add /prod_norm.
-by rewrite !norm_sqr !exp_R /=.
-Qed.
-
-Lemma Cr_norm_compat2 :  forall (x y : complexR) (eps : posreal),
-    ball x eps y -> 
-  Rlt (norm_R (y - x)) ( (Num.sqrt 2%:R) * eps). 
-Proof.
-move=> [xr xi] [yr yi] eps.
-move: (C_NormedModule_mixin_compat2 (xr, xi) (yr, yi) eps)=>  /= H [ Hr Hi].
-move: H; rewrite /ball /= /prod_ball /= => H; move: (H (conj Hr Hi)) =>{H}.
-set u := _ ^+ 2 + _ ^+ 2.
-have : 0 <= u by rewrite /u addr_ge0 ?sqr_ge0.
-rewrite /u /Cmod /minus /= /plus /= /opp /= !exprS !expr0 !Rplus_add /=.
-rewrite !Rmult_mul !Ropp_opp /= => cu. 
-by rewrite -[(R1 + R1)]/(2%:R) !sqrt_R // ler0n.
-Qed.
-
-Lemma  CRmod_eq_0: 
-forall x : Cr_R_NormedModuleAux, norm_R x = 0 -> x = zero.
-Proof. by move=> x ; apply: complex.ComplexField.eq0_normc. Qed.
-
-Definition Cr_R_NormedModule_mixin :=
-  NormedModule.Mixin R_AbsRing _ _ _ Cr_norm_triangle
-  Cr_norm_scal Cr_norm_compat1 Cr_norm_compat2 CRmod_eq_0.
-
-Canonical Cr_R_NormedModule :=
+Canonical Cr_NormedModule := 
   NormedModule.Pack R_AbsRing complexR 
-    (NormedModule.Class R_AbsRing complexR _ Cr_R_NormedModule_mixin) complexR.
-
-(* TODO : utility ? 
-Lemma normM (z1 z2 : complexR) : norm (z1 * z2) = norm z1 * norm z2.
-Proof. by rewrite /norm /= complex.ComplexField.normcM. Qed. *)
+    (NormedModule.Class R_AbsRing complexR _ Cr_NormedModule_mixin) complexR.
 
 (* inequalities on norms *)
 
@@ -311,6 +169,16 @@ Qed.
 
 Lemma norm_morph : {morph (norm : complexR -> R) : x y / x * y >-> x * y}.
 Proof. by move=> x y; rewrite normM. Qed.
+
+About CompleteSpace.Mixin.
+
+Search _ "CompleteSpace".
+Locate C_CompleteSpace_mixin.
+
+(* Complete Space *)
+Program Definition Cr_CompleteSpace_mixin :=
+  CompleteSpace.Mixin Cr_UniformSpace (fun 
+
 
 
 End Cstruct.
@@ -1244,41 +1112,26 @@ move => [[lr is_R] [li is_I]]; rewrite ex_CrInt_C_eq.
 by exists (RtoC lr + 'i * RtoC li); rewrite /is_CrInt /=; simpc; split.
 Qed.
 
-Definition CrInt (f : R -> Cr_R_NormedModule) a b : complexR :=
-  match Rle_dec a b with
-    |left _ => Cr_limseq (RInt_val f a b)
-    |right _ => - Cr_limseq (RInt_val f b a)
-  end.
-
-Definition CrInt_C f a b : complexR :=
+Definition CrInt f a b : complexR :=
   RtoC (RInt (fun x => Re_R (f x)) a b) + 'i *
   RtoC (RInt (fun x => Im_R (f x)) a b).
 
-Lemma CrInt_C_eq f a b :
-     CrInt f a b = CrInt_C f a b.
-Proof.
-rewrite /CrInt /CrInt_C /RInt /Cr_limseq.
-case: (Rle_dec a b) => H.
-  apply/eqP; rewrite eq_complex /=; apply/andP; split; apply/eqP; simpc.
-    rewrite (Lim_seq_ext _ (RInt_val (fun x : R => Re_R (f x)) a b)) //.
-    by move=> n; rewrite /RInt_val Riemann_sum_Re.
-  rewrite (Lim_seq_ext _ (RInt_val (fun x : R => Im_R (f x)) a b)) //=.
-  by move=> n; rewrite /RInt_val Riemann_sum_Im.
-apply/eqP; rewrite eq_complex /=; apply/andP; split; apply/eqP; simpc.
-  rewrite (Lim_seq_ext _ (RInt_val (fun x : R => Re_R (f x)) b a)) //=.
-  by move=> n; rewrite /RInt_val Riemann_sum_Re.
-rewrite (Lim_seq_ext _ (RInt_val (fun x : R => Im_R (f x)) b a)) //=.
-by move=> n; rewrite /RInt_val Riemann_sum_Im. 
-Qed.
+About RInt.
 
-Lemma CrInt_C_unique f a b If :
-  is_CrInt f a b If -> CrInt_C f a b = If.
+
+Lemma CrInt_eq (f : R -> Cr_R_NormedModule) a b :
+  RInt f a b = CrInt f a b.
+
+Lemma CrInt_unique f a b If :
+  is_CrInt f a b If -> CrInt f a b = If.
 Proof.
 move=> [Hr Hi].
 rewrite /CrInt.
 apply/eqP; rewrite eq_complex /=.
 by rewrite (is_RInt_unique _ _ _ _ Hr) (is_RInt_unique _ _ _ _ Hi); simpc.
 Qed.
+
+About RInt.
 
 Lemma CrInt_unique f a b If :
   is_RInt f a b If -> CrInt f a b = If.
