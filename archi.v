@@ -2460,6 +2460,15 @@ have psn0 := psep_neq0 pn0; rewrite -(roots_eq _ _ psn0 pn0) => x _.
 by rewrite psep_root.
 Qed.
 
+Lemma psep_mu_root (R : numFieldType) (p : {poly R}) (x : R) :
+   p != 0 -> root p x -> \mu_x (psep p) = 1%N.
+Proof.
+move=> pn0 rootpx; apply/esym/eqP; rewrite -(muP _ _ (psep_neq0 pn0)) expr1.
+rewrite dvdp_XsubCl psep_root rootpx /=.
+have := (separable_coprime (psep_separable pn0)); rewrite poly_square_freeP.
+by apply; rewrite size_XsubC.
+Qed.
+
 Definition sgpr {aR : realDomainType} (p : {poly aR}) x :=
   let fix aux (p : {poly aR}) n :=
   if n is n'.+1
@@ -2510,82 +2519,90 @@ Definition single_root {R : realDomainType} (p : {poly R}) (a b : R) :=
   else let q := psep p in
   (forall x, ratr x \in `]a, b[ -> (forall y, ratr y \in `]a, b[ ->
   Num.sg q.[ratr x] < Num.sg q.[ratr y] ->
-  sgpr p a * (ratr y) < sgpr p a * (ratr x))).
+  sgpr q a * (ratr y) < sgpr q a * (ratr x))).
 
 Lemma single_root_size2 {R : realDomainType} (a b x : R) :
   x \in `]a, b[ -> single_root ('X - x%:P) a b.
 Proof.
 move=> x_in; rewrite /single_root polyXsubC_eq0 (itvP x_in) /= => u u_in v v_in.
-rewrite /sgpr size_XsubC rootE hornerXsubC subr_eq0 neqr_lt (itvP x_in) /=.
-rewrite [_ (a - x)]ltr0_sg; last by rewrite subr_lt0 (itvP x_in).
-rewrite psep_XsubC !hornerXsubC (ltr_nmul2l (@ltrN10 _)) => /sgr_mono.
-by rewrite ltr_add2r.
+rewrite psep_XsubC /sgpr size_XsubC rootE !hornerXsubC subr_eq0 neqr_lt. 
+rewrite (itvP x_in) /= [_ (a - x)]ltr0_sg; last by rewrite subr_lt0 (itvP x_in).
+by rewrite (ltr_nmul2l (@ltrN10 _)) => /sgr_mono; rewrite ltr_add2r.
 Qed.
 
-About sgr_mono.
+Lemma single_root_ge {R : realDomainType} (p : {poly R}) a b :
+  b <= a -> ~ single_root p a b.
+Proof. by rewrite /single_root => ->; rewrite orbT. Qed.
 
-Search _ sgp_right.
-
-Search _ ('X - _%:P).
-
-
-case: sgrP => Hu; case: sgrP => Hv //= _.
-
-Search _ sgpr.
-
-
-Definition single_root {R : realDomainType} (p : {poly R}) (a b : R) :=
-  if (b <= a) then if (a == b) then (p.[a] = 0) else False
-  else let q := psep p in 
-  (forall x, ratr x \in `]a, b[ -> (forall y, ratr y \in `]a, b[ -> 
-  Num.sg (Num.sg q.[ratr x] - Num.sg q.[ratr y]) == 
-  Num.sg (sgpr q b - sgpr q a) * Num.sg (ratr x - ratr y))).
-
-Lemma single_root_eq {R : realDomainType} (p : {poly R}) a b :
-  a == b -> (single_root p a b <-> p.[a] = 0).
-Proof. by move=> /eqP ->; rewrite /single_root lerr eq_refl. Qed.
-
-Lemma single_root_gt {R : realDomainType} (p : {poly R}) a b :
-  a > b -> (single_root p a b <-> False).
-Proof. by move=> lt_ba; rewrite /single_root (ltrW lt_ba) (gtr_eqF lt_ba). Qed.
+Lemma single_root0 {R : realDomainType} (a b : R) :
+  ~ single_root 0 a b.
+Proof. by rewrite /single_root eq_refl orTb. Qed.
 
 Lemma single_root_lt {R : realDomainType} (p : {poly R}) a b :
-  a < b -> (single_root p a b <-> let q := p %/ gcdp p p^`() in 
+  p != 0 -> a < b -> (single_root p a b <-> let q := psep p in 
   (forall x, ratr x \in `]a, b[ -> (forall y, ratr y \in `]a, b[ -> 
-  Num.sg (Num.sg q.[ratr x] - Num.sg q.[ratr y]) == 
-  Num.sg (sgpr q b - sgpr q a) * Num.sg (ratr x - ratr y)))).
-Proof. by move=> lt_ab; rewrite /single_root lerNgt lt_ab /=. Qed.
+  Num.sg q.[ratr x] < Num.sg q.[ratr y] -> 
+  sgpr q a * (ratr y) < sgpr q a * (ratr x)))).
+Proof. by move=> pn0 lt_ab; rewrite /single_root lerNgt lt_ab (negbTE pn0). Qed.
 
 Lemma single_root_map (p : {poly rat}) a b (R : realFieldType) :
   single_root p a b <-> single_root (map_poly (@ratr R) p) (ratr a) (ratr b).
 Proof.
-rewrite /single_root; case: (ltrgtP a b) => [lt_ab | lt_ba | -> ]; last first. 
-+ rewrite lerr eq_refl horner_map /=; split => [-> |]; first by rewrite rmorph0.
-  by move/eqP; rewrite fmorph_eq0 => /eqP.
-+ by rewrite ler_rat (ltrW lt_ba) (inj_eq (fmorph_inj _)) // (gtr_eqF lt_ba).
-rewrite ler_rat lerNgt lt_ab /=; split => H x /itv_dec /= xin y /itv_dec /= yin.
-+ apply/eqP; rewrite deriv_map -gcdp_map -map_divp !horner_map.
-  rewrite -![in LHS]ratr_sg -[in LHS]rmorphB -ratr_sg.
-  have := (H x _ y _); rewrite -!(fmorph_eq_rat (GRing.idfun_rmorphism _)) /=.
-  have Hx : x \in `]a, b[ by apply/itv_dec; have := xin; rewrite !ltr_rat.
-  have Hy : y \in `]a, b[ by apply/itv_dec; have := yin; rewrite !ltr_rat.
-  move/(_ Hx Hy)/eqP => ->; rewrite rmorphM /= !ratr_sg !rmorphB /=. 
-  by rewrite !(sgpr_map (@ler_rat R)).
-move:xin yin; rewrite -!(fmorph_eq_rat (GRing.idfun_rmorphism _)) /= => xin yin.
-rewrite -(inj_eq (fmorph_inj (ratr_rmorphism R))) rmorphM /= !ratr_sg !rmorphB.
-rewrite /= !ratr_sg -!horner_map /= -!(sgpr_map (@ler_rat R)) !psep_map /=.
-by apply: H; apply/itv_dec => /=; rewrite !ltr_rat.
+case: (boolP (p == 0)) => [/eqP -> | pn0].
+  have h:= (@single_root0 _ a b); have H:= (@single_root0 R (ratr a) (ratr b)).
+  by rewrite rmorph0 iff_to_and; split => [/h |/H].
+case: (ltrP a b) => [lt_ab | lt_ba]; last first.
+  rewrite iff_to_and; split; first by move => /(single_root_ge lt_ba). 
+  have /single_root_ge H : ratr b <= ratr a :> R by rewrite ler_rat. 
+  by move/H.
+rewrite /single_root map_poly_eq0 (negbTE pn0) ler_rat (ltr_geF lt_ab) /=.
+split=> H x x_in y y_in. 
++ have:= (H x _ y _); rewrite -!(fmorph_eq_rat (GRing.idfun_rmorphism _)) => h.
+  rewrite -psep_map (sgpr_map (@ler_rat R)) /= -!rmorphM !horner_map -!ratr_sg.
+  rewrite 2!ltr_rat; apply: h => /=; apply/itv_dec.
+    by have /itv_dec := x_in; rewrite /= ?ltr_rat.
+  by have /itv_dec := y_in; rewrite /= ?ltr_rat.
+move: x_in y_in; rewrite -!(fmorph_eq_rat (GRing.idfun_rmorphism _)) /=.
+move=> x_in y_in; have:= (H x _ y _); rewrite -psep_map !horner_map -!ratr_sg.
+rewrite (sgpr_map (@ler_rat R)) -!rmorphM 2!ltr_rat.
+by apply; apply/itv_dec => /=; rewrite !ltr_rat ?(itvP x_in) ?(itvP y_in).
 Qed.
 
 Lemma single_rootP {R : rcfType} (p : {poly R}) a b :
-  p != 0 -> reflect (single_root p a b) (size (roots p a b) == 1%N).
+  reflect (single_root p a b) (size (roots p a b) == 1%N).
 Proof.
-move=> pn0; rewrite -psep_roots; apply: (iffP idP) => [H |].
+case: (boolP (p == 0)) => [/eqP -> | pn0].
+  by rewrite roots0 /= eq_sym eqn0Ngt /=; apply/ReflectF/single_root0.
+case: (ltrP a b) => [lt_ab | le_ba]; last first.
+  by rewrite (rootsEba _ le_ba) eq_sym eqn0Ngt; apply/ReflectF/single_root_ge.
+rewrite -psep_roots; apply: (iffP idP) => [H |].
 + move eq_s: (roots (psep p) a b) => s.
   case: s eq_s => [eq0|]; rewrite ?eq0 //= in H.
   move=> u s eqs; move: H; rewrite eqs /= eqSS size_eq0 => /eqP eq0.
   rewrite eq0 in eqs => {s eq0}; move/eqP: eqs; rewrite roots_cons.
   move =>/and5P[psn0 u_in /eqP rau rootu /eqP rub].
+  have Hinf z : z \in `]a, u[ -> Num.sg (psep p).[z] = sgp_right (psep p) a.
+    move=> z_in; apply: (@sgr_neighpr _ u); rewrite /neighpr /next_root rau /=.
+    by rewrite (negbTE psn0) maxr_l ?(itvP z_in).
+  have Hsup z : z \in `]u, b[ -> Num.sg (psep p).[z] = - sgp_right (psep p) a.
+    move=> z_in; rewrite (@sgr_neighpr _ b _ u); last first.
+      by rewrite /neighpr /next_root rub /= (negbTE psn0) maxr_l ?(itvP z_in).
+    rewrite -(@sgr_neighpr _ u (psep p) a ((a + u)/2%:R)); last first.
+      by rewrite /neighpr /next_root rau /= (negbTE psn0) maxr_l ?mid_in_itvoo ?(itvP u_in).
+    rewrite (@sgr_neighpl _ a (psep p) u); last first.
+      by rewrite /neighpl /prev_root rau /= (negbTE psn0) minr_l ?mid_in_itvoo ?(itvP u_in).
+    by rewrite (psep_mu_root pn0) /= ?expr1 ?mulN1r ?opprK // -psep_root.
+  rewrite /single_root (negbTE pn0) (ltr_geF lt_ab) /= => x x_in y y_in pxy.
+  rewrite sgpr_sgp_right.
+  case: (ltrgtP (ratr x) u) => [lt_xu | /eqP eq_xu | lt_ux].
+  - have := (@sgr_neighpr _ u (psep p) a (ratr x)). ; last first.
+      by rewrite Hnr; apply/itv_dec; rewrite /= (itvP x_in) lt_xu.
+    case: sgrP.
+  
+
+
+Search _ sgp_right.
+
   have in_neil z : z < u -> z \in `]a, b[ -> z \in neighpl (psep p) a u.
     move=> ltzu z_in; apply/itv_dec; rewrite /= ltzu /prev_root ifN // rau /=.
     by rewrite minr_l ?(itvP u_in) ?(itvP z_in).
@@ -2615,6 +2632,10 @@ have /negbTE -> := pn0.
 
 have:= pn0; case: (p == 0) => //  _.
 
+polyrN0_itv:
+  forall (R : rcfType) (i : interval R) (p : {poly R}),
+  {in i, forall x : R, ~~ root p x} ->
+  forall y x : R, y \in i -> x \in i -> Num.sg p.[x] = Num.sg p.[y]
 Search _ negb.
 Search _ (_ = false).
 Print negb.
