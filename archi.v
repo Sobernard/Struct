@@ -2510,6 +2510,57 @@ rewrite /sgpr; suff -> : size p = (size p^`()).+1 by rewrite rootNpx.
 by rewrite size_deriv prednK // size_poly_gt0.
 Qed.
 
+(* :TODO: modif in sgp_right_eq0 *)
+Lemma sgpr_eq0 (R : realDomainType) p (x : R) : (sgpr p x == 0) = (p == 0).
+Proof.
+case: (altP (p =P 0))=> [->|p0]; first by rewrite /sgpr size_poly0 eq_refl.
+rewrite /sgpr.
+elim: (size p) {-2}p (erefl (size p)) p0=> {p} [|sp ihsp] p esp p0.
+  by move/eqP:esp; rewrite size_poly_eq0 (negPf p0).
+rewrite esp /=; case px0: root=> //=; rewrite ?sgr_cp0 ?px0//.
+have hsp: sp = size p^`() by rewrite size_deriv esp.
+rewrite hsp ihsp // -size_poly_eq0 -hsp; apply/negP; move/eqP=> sp0.
+by have := root_size_gt1 p0 px0; rewrite esp sp0 ltnn.
+Qed.
+
+CoInductive sgpr_spec {R : realDomainType} (p : {poly R}) (x : R) :
+  R -> bool -> bool -> bool -> bool -> bool -> bool -> bool -> bool -> bool -> Type :=
+| Sgpr0 : p = 0 -> sgpr_spec p x 0 true false true false false false false true true
+| SgprPos : p != 0 -> sgpr p x = 1 -> sgpr_spec p x 1 false true false true false true false true false
+| SgprNeg : p != 0 -> sgpr p x = -1 -> sgpr_spec p x (-1) false true false false true false true false true.
+
+Lemma sgprP {R : realDomainType} (p : {poly R}) x :
+  sgpr_spec p x (sgpr p x) (p == 0) (p != 0) (sgpr p x == 0) (sgpr p x > 0) (sgpr p x < 0)
+            (sgpr p x == 1) (sgpr p x == -1) (sgpr p x >= 0) (sgpr p x <= 0).
+Proof.
+elim: (size p) {-2}p (erefl (size p)) => {p} [p H|n ihn p sp].
+  rewrite /sgpr H eq_refl lerr ltrr -eqr_oppLR oppr0 [0 == _]eq_sym oner_eq0.
+  move/eqP: H; rewrite size_poly_eq0 => /eqP ->; rewrite eq_refl.
+  by constructor.
+have spd : size p^`() = n by rewrite size_deriv sp.
+have /lt0n_neq0 : (size p > 0)%N by rewrite sp.
+rewrite size_poly_eq0 => /negbTE -> /=.
+case: (ihn _ spd) => [pd0|pd0 sgd|pd0 sgd]; rewrite /sgpr sp -spd -/sgpr.
+  rewrite pd0 size_poly0; case: (root p x) => /=.
+  + rewrite eq_refl lerr ltrr -eqr_oppLR oppr0 [0 == _]eq_sym oner_eq0.
+    by constructor.
+
+
+Print comparer.
+Search _ "spec".
+About sgrP.
+Print sgr_val.
+
+  rewrite size_poly_eq0 => p0; have/eqP -> := p0.
+
+elim: (size p) => [|n ihn].
+case: (boolP (p == 0)) => [/eqP H|pn0].
+  rewrite H /= size_poly0 eq_refl lerr ltrr -eqr_oppLR oppr0 eq_sym oner_eq0.
+  by constructor.
+elim: (size p).
+  constructor.
+
+
 Section SingleRoot.
 
 (* condition trop forte : racine multiple ? (double) *)
@@ -2575,26 +2626,34 @@ case: (boolP (p == 0)) => [/eqP -> | pn0].
   by rewrite roots0 /= eq_sym eqn0Ngt /=; apply/ReflectF/single_root0.
 case: (ltrP a b) => [lt_ab | le_ba]; last first.
   by rewrite (rootsEba _ le_ba) eq_sym eqn0Ngt; apply/ReflectF/single_root_ge.
-rewrite -psep_roots; apply: (iffP idP) => [H |].
+rewrite -psep_roots; wlog : p pn0 / sgpr (psep p) a = 1.
+  move=> ihp; apply: (iffP idP); case: (sgpr (psep p) a).
+
+apply: (iffP idP) => [H {lt_ab} |].
+wlog : p pn0 H / sgpr p a = 1.
+  move=> ihp.
+
+
 + move eq_s: (roots (psep p) a b) => s.
-  case: s eq_s => [eq0|]; rewrite ?eq0 //= in H.
-  move=> u s eqs; move: H; rewrite eqs /= eqSS size_eq0 => /eqP eq0.
-  rewrite eq0 in eqs => {s eq0}; move/eqP: eqs; rewrite roots_cons.
-  move =>/and5P[psn0 u_in /eqP rau rootu /eqP rub].
-  have Hinf z : z \in `]a, u[ -> Num.sg (psep p).[z] = sgp_right (psep p) a.
-    move=> z_in; apply: (@sgr_neighpr _ u); rewrite /neighpr /next_root rau /=.
-    by rewrite (negbTE psn0) maxr_l ?(itvP z_in).
-  have Hsup z : z \in `]u, b[ -> Num.sg (psep p).[z] = - sgp_right (psep p) a.
-    move=> z_in; rewrite (@sgr_neighpr _ b _ u); last first.
-      by rewrite /neighpr /next_root rub /= (negbTE psn0) maxr_l ?(itvP z_in).
-    rewrite -(@sgr_neighpr _ u (psep p) a ((a + u)/2%:R)); last first.
+  case: s eq_s => [eq0 | u s eqs]; move: H; rewrite ?eq0 //=.
+  rewrite eqs /= eqSS size_eq0 => /eqP eq0; move/eqP: eqs; rewrite eq0.
+  rewrite roots_cons => {s eq0} /and5P[psn0 u_in /eqP rau rootu /eqP rub].
+  have Hinf z : z \in `]a, b[ -> z < u -> Num.sg (psep p).[z] = sgpr (psep p) a.
+    move=> z_in lt_zu; rewrite sgpr_sgp_right.
+    apply: (@sgr_neighpr _ u); rewrite /neighpr /next_root rau /= (negbTE psn0).
+    by rewrite maxr_l ?inE ?lt_zu ?(itvP z_in) ?(itvP u_in).
+  have Hsup z : z \in `]a, b[ -> u < z -> -Num.sg (psep p).[z] = sgpr (psep p) a.
+    move=> z_in lt_uz; rewrite (@sgr_neighpr _ b _ u); last first.
+      by rewrite /neighpr /next_root rub /= (negbTE psn0) maxr_l ?inE ?lt_uz ?(itvP z_in) ?(itvP u_in).
+    rewrite sgpr_sgp_right -(@sgr_neighpr _ u (psep p) a ((a + u)/2%:R)); last first.
       by rewrite /neighpr /next_root rau /= (negbTE psn0) maxr_l ?mid_in_itvoo ?(itvP u_in).
     rewrite (@sgr_neighpl _ a (psep p) u); last first.
       by rewrite /neighpl /prev_root rau /= (negbTE psn0) minr_l ?mid_in_itvoo ?(itvP u_in).
-    by rewrite (psep_mu_root pn0) /= ?expr1 ?mulN1r ?opprK // -psep_root.
+    by rewrite (psep_mu_root pn0) /= ?expr1 ?mulN1r // -psep_root.
   rewrite /single_root (negbTE pn0) (ltr_geF lt_ab) /= => x x_in y y_in pxy.
-  rewrite sgpr_sgp_right.
   case: (ltrgtP (ratr x) u) => [lt_xu | /eqP eq_xu | lt_ux].
+  + have eq_x := (Hinf _ x_in lt_xu).
+
   - have := (@sgr_neighpr _ u (psep p) a (ratr x)). ; last first.
       by rewrite Hnr; apply/itv_dec; rewrite /= (itvP x_in) lt_xu.
     case: sgrP.
