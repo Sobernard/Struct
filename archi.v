@@ -2331,6 +2331,365 @@ have Huniq : uniq s.
 by have := (max_poly_roots H Hall Huniq); rewrite Hsize size_mkseq ltnS ltnn.
 Qed.
 
+Section Extremumr.
+
+Variable R : eqType.
+Variable ord : rel R.
+Hypothesis ord_refl : reflexive ord.
+Hypothesis ord_total : total ord.
+Hypothesis ord_trans : transitive ord.
+Hypothesis ord_asym : antisymmetric ord.
+Variable ford : R -> R -> R.
+Hypothesis ford_ord : forall x y : R, ford x y = if (ord x y) then x else y.
+
+(* eqType for i \in r *)
+CoInductive extremumr_spec (I : eqType) (r : seq I) (P : pred I) (F : I -> R) : 
+  I -> Type :=
+  ExtremumrSpec : forall i : I, P i && (i \in r) ->
+    (forall j : I, P j && (j \in r) -> ord (F i) (F j)) -> 
+    extremumr_spec r P F i.
+
+Definition arg_extr (I : eqType) (r : seq I) (P : pred I) (F : I -> R) (i : I) 
+  :=
+  let fix aux s j :=
+    match s with
+    | [::] => j
+    | k :: s' => if (ord (F j) (F k)) then aux s' j else aux s' k end 
+  in match (filter P r) with
+  | [::] => i
+  | j :: r' => aux r' j end.
+ 
+Lemma arg_extrP (I : eqType) (r : seq I) (P : pred I) (F : I -> R) (i : I) :
+  P i && (i \in r) -> extremumr_spec r P F (arg_extr r P F i).
+Proof.
+rewrite -mem_filter => i_in; constructor.
+- rewrite /arg_extr -mem_filter.
+  move: i_in; case: (filter P r) => // {r} j r _ {i}.
+  elim: r j => [i | i r ihr j]; first by rewrite inE eq_refl.
+  case: ifP => _; last by rewrite inE ihr orbT.
+  by rewrite !inE orbCA; have := ihr j; rewrite inE => ->; rewrite orbT.
+move=> j; move: i_in; rewrite /arg_extr -mem_filter.
+case: (filter P r) => // {r} k r _ {i}.
+elim: r j k => [k i|]; first by rewrite inE => /eqP ->; rewrite /= ord_refl.
+move=> i r ihr k j k_in; case: ifP => /= leFij.
+- move: k_in; rewrite !inE orbCA => /orP[/eqP -> | k_in].
+  + by apply/(ord_trans _ leFij)/ihr; rewrite inE eq_refl.
+  by apply: ihr; rewrite inE k_in.
+move: k_in; rewrite inE => /orP[/eqP -> | k_in]; last by apply: ihr.
+have := ord_total (F i) (F j); rewrite leFij orbF.
+by apply/ord_trans/ihr; rewrite inE eq_refl.
+Qed.  
+
+Definition bigextr (I : eqType) (r : seq I) (P : pred I) (F : I -> R) (x0 : R) 
+  := foldr ford (head x0 (map F (filter P r))) 
+  (behead (map F (filter P r))).
+
+Lemma bigextr_eq_arg (I : eqType) (r : seq I) (P : pred I) (F : I -> R)
+  (i : I) :
+  bigextr r P F (F i) = F (arg_extr r P F i).
+Proof.
+rewrite /bigextr /arg_extr; case: (filter P r) => //= {r i} i r.
+elim: r i => // i r ihr j /=; case: ifP => [leFij|/negP/negP].
+- apply/eqP; rewrite -ihr; set k := foldr _ _ _; suff : ord k (F i).
+  + rewrite ford_ord; case: ifP => [hfik hkfi|//].
+    by have -> // := (@ord_asym (F i) k); rewrite hfik hkfi.
+  rewrite /k; elim: r {ihr k} => // k r /=.
+  by rewrite ford_ord; case: ifP => //; apply: ord_trans.
+rewrite -ihr => ordF; elim: (map _ _) => /= [|].
+- rewrite ford_ord.
+  by have := (ord_total (F i) (F j)); rewrite (negbTE ordF) orbF => ->.
+move=> k {r ihr} r <-; set s := foldr _ _ _; rewrite !ford_ord.
+case: (boolP (ord k s)); case: (boolP (ord (F i) s)); first last.
+- by move=> _ h; rewrite (negbTE h).
+- move=> Fis /negP nks; rewrite ifN //; apply/negP => kFi; apply: nks.
+  by apply: (ord_trans kFi Fis).
+- move=> /negP nFis ks; rewrite ks ifN //; apply/negP => kFi; apply: nFis.
+  by apply: (ord_trans kFi ks).
+move=> _ _; case: ifP; case: ifP => //.
+- by move=> kfi fik; apply: ord_asym; rewrite kfi fik.
+by move=> hkfi hfik; have := ord_total (F i) k; rewrite hkfi hfik.
+Qed.
+
+Lemma bigextr_default (I : eqType) (r : seq I) (P : pred I) (x1 : R) 
+  (F : I -> R) (x0 : R) :
+  has P r -> bigextr r P F x0 = bigextr r P F x1.
+Proof. by rewrite has_filter /bigextr; case: (filter _ _). Qed.
+
+Lemma ler_bigextr_cond (I : eqType) (r : seq I) (P : pred I) (F : I -> R) 
+  (x0 : R) (i : I) :
+  P i && (i \in r) -> ord (bigextr r P F x0) (F i).
+Proof.
+move=> i_in; have /(bigextr_default (F i)) -> : has P r.
+- by apply/hasP; exists i; have /andP[] := i_in.
+by rewrite bigextr_eq_arg; case: arg_extrP => // j j_in /(_ i i_in).
+Qed.
+
+Lemma ler_bigextr (I : eqType) (r : seq I) (F : I -> R) (x0 : R) (i : I) :
+  i \in r -> ord (bigextr r xpredT F x0) (F i).
+Proof. by move=> i_in; apply: ler_bigextr_cond; rewrite i_in. Qed.
+
+Lemma bigextr_lerP (I : eqType) (r : seq I) (P : pred I) (x : R) (F : I -> R) 
+  (x0 : R) :
+  ord x x0 -> reflect (forall j : I, P j && (j \in r) -> (ord x (F j))) 
+                    (ord x (bigextr r P F x0)).
+Proof.
+case: (boolP (filter P r == [::])) => [/eqP r_eq0| r_neq0 _].
+- rewrite /bigextr r_eq0 /= => ->.
+  by apply: ReflectT => j; rewrite -mem_filter r_eq0 in_nil.
+have Hsize : size (filter P r) == (size (filter P r)).-1.+1.
+  by rewrite prednK ?eq_refl // lt0n size_eq0 r_neq0.
+have := mem_tnth ord0 (Tuple Hsize); rewrite mem_filter.
+set i := tnth _ ord0 => i_in; rewrite (bigextr_default (F i)) ?has_filter //.
+rewrite bigextr_eq_arg; case: arg_extrP => // j j_in /=.
+case: (boolP (ord x (F j))) => [leFjx HFkj | lexFj HFkj].
+- by apply/ReflectT => k /HFkj; apply/(ord_trans leFjx).
+by apply/ReflectF => /(_ _ j_in); rewrite (negbTE lexFj).
+Qed.
+
+Lemma bigextr_sup (I : eqType) (r : seq I) (P : pred I) (x : R) (i : I) (F : I -> R)
+  (x0 : R) :
+  P i && (i \in r) -> ord (F i) x -> ord (bigextr r P F x0) x.
+Proof.
+move=> i_in; rewrite (bigextr_default (F i)); last first.
+  by apply/hasP; exists i; have /andP[] := i_in.
+rewrite bigextr_eq_arg; case: arg_extrP => // j j_in /(_ i i_in).
+by apply: ord_trans.
+Qed.
+
+End Extremumr.
+
+Reserved Notation "\maxr [ x ]_ i F"
+  (at level 41, F at level 41, x at level 50, i at level 0, right associativity,
+  format "'[' \maxr [ x ]_ i '/ ' F ']'").
+Reserved Notation "\maxr [ x ]_ ( i : t ) F"
+  (at level 41, F at level 41, i, x at level 50, right associativity,
+  format "'[' \maxr [ x ]_ ( i : t ) '/ ' F ']'").
+Reserved Notation "\maxr [ x ]_ ( i < n ) F"
+  (at level 41, F at level 41, i, n, x at level 50, right associativity,
+  format "'[' \maxr [ x ]_ ( i < n ) '/ ' F ']'").
+Reserved Notation "\maxr [ x ]_ ( i <- r ) F"
+  (at level 41, F at level 41, i, r, x at level 50, right associativity,
+  format "'[' \maxr [ x ]_ ( i <- r ) '/ ' F ']'").
+Reserved Notation "\maxr [ x ]_ ( m <= i < n ) F"
+  (at level 41, F at level 41, m, i, n, x at level 50, right associativity,
+  format "'[' \maxr [ x ]_ ( m <= i < n ) '/ ' F ']'").
+Reserved Notation "\maxr [ x ]_ ( i 'in' A ) F"
+  (at level 41, F at level 41, i, A, x at level 50, right associativity,
+  format "'[' \maxr [ x ]_ ( i 'in' A ) '/ ' F ']'").
+Reserved Notation "\maxr [ x ]_ ( i | P ) F"
+  (at level 41, F at level 41, i, x at level 50, right associativity,
+  format "'[' \maxr [ x ]_ ( i | P ) '/ ' F ']'").
+Reserved Notation "\maxr [ x ]_ ( i : t | P ) F"
+  (at level 41, F at level 41, i, x at level 50, right associativity,
+  format "'[' \maxr [ x ]_ ( i : t | P ) '/ ' F ']'").
+Reserved Notation "\maxr [ x ]_ ( i < n | P ) F"
+  (at level 41, F at level 41, i, n, x at level 50, right associativity,
+  format "'[' \maxr [ x ]_ ( i < n | P ) '/ ' F ']'").
+Reserved Notation "\maxr [ x ]_ ( i <- r | P ) F"
+  (at level 41, F at level 41, i, r, x at level 50, right associativity,
+  format "'[' \maxr [ x ]_ ( i <- r | P ) '/ ' F ']'").
+Reserved Notation "\maxr [ x ]_ ( m <= i < n | P ) F"
+  (at level 41, F at level 41, m, i, n, x at level 50, right associativity,
+  format "'[' \maxr [ x ]_ ( m <= i < n | P ) '/ ' F ']'").
+Reserved Notation "\maxr [ x ]_ ( i 'in' A | P ) F"
+  (at level 41, F at level 41, i, A, x at level 50, right associativity,
+  format "'[' \maxr [ x ]_ ( i 'in' A | P ) '/ ' F ']'").
+
+
+Reserved Notation "\minr [ x ]_ i F"
+  (at level 41, F at level 41, x at level 50, i at level 0, right associativity,
+  format "'[' \minr [ x ]_ i '/ ' F ']'").
+Reserved Notation "\minr [ x ]_ ( i : t ) F"
+  (at level 41, F at level 41, i, x at level 50, right associativity,
+  format "'[' \minr [ x ]_ ( i : t ) '/ ' F ']'").
+Reserved Notation "\minr [ x ]_ ( i < n ) F"
+  (at level 41, F at level 41, i, n, x at level 50, right associativity,
+  format "'[' \minr [ x ]_ ( i < n ) '/ ' F ']'").
+Reserved Notation "\minr [ x ]_ ( i <- r ) F"
+  (at level 41, F at level 41, i, r, x at level 50, right associativity,
+  format "'[' \minr [ x ]_ ( i <- r ) '/ ' F ']'").
+Reserved Notation "\minr [ x ]_ ( m <= i < n ) F"
+  (at level 41, F at level 41, m, i, n, x at level 50, right associativity,
+  format "'[' \minr [ x ]_ ( m <= i < n ) '/ ' F ']'").
+Reserved Notation "\minr [ x ]_ ( i 'in' A ) F"
+  (at level 41, F at level 41, i, A, x at level 50, right associativity,
+  format "'[' \minr [ x ]_ ( i 'in' A ) '/ ' F ']'").
+Reserved Notation "\minr [ x ]_ ( i | P ) F"
+  (at level 41, F at level 41, i, x at level 50, right associativity,
+  format "'[' \minr [ x ]_ ( i | P ) '/ ' F ']'").
+Reserved Notation "\minr [ x ]_ ( i : t | P ) F"
+  (at level 41, F at level 41, i, x at level 50, right associativity,
+  format "'[' \minr [ x ]_ ( i : t | P ) '/ ' F ']'").
+Reserved Notation "\minr [ x ]_ ( i < n | P ) F"
+  (at level 41, F at level 41, i, n, x at level 50, right associativity,
+  format "'[' \minr [ x ]_ ( i < n | P ) '/ ' F ']'").
+Reserved Notation "\minr [ x ]_ ( i <- r | P ) F"
+  (at level 41, F at level 41, i, r, x at level 50, right associativity,
+  format "'[' \minr [ x ]_ ( i <- r | P ) '/ ' F ']'").
+Reserved Notation "\minr [ x ]_ ( m <= i < n | P ) F"
+  (at level 41, F at level 41, m, i, n, x at level 50, right associativity,
+  format "'[' \minr [ x ]_ ( m <= i < n | P ) '/ ' F ']'").
+Reserved Notation "\minr [ x ]_ ( i 'in' A | P ) F"
+  (at level 41, F at level 41, i, A, x at level 50, right associativity,
+  format "'[' \minr [ x ]_ ( i 'in' A | P ) '/ ' F ']'").
+
+
+
+
+
+Notation "\maxr [ x ]_ ( i <- r | P ) F" :=
+  (bigextr Num.max r (fun i => P) (fun i => F) x) : ring_scope.
+Notation "\maxr [ x ]_ ( i <- r ) F" :=
+  (\maxr[x]_( i <- r | true ) F) : ring_scope.
+Notation "\maxr [ x ]_ ( m <= i < n | P ) F" :=
+  (bigextr Num.max (index_iota m n) (fun i => P) (fun i => F) x) : ring_scope.
+Notation "\maxr [ x ]_ ( m <= i < n ) F" :=
+  (\maxr[x]_( m <= i < n | true ) F) : ring_scope.
+Notation "\maxr [ x ]_ ( i | P ) F" :=
+  (bigextr Num.max (index_enum _) (fun i => P) (fun i => F) x) : ring_scope.
+Notation "\maxr [ x ]_ i F" :=
+  (\maxr[x]_( i | true ) F) : ring_scope.
+Notation "\maxr [ x ]_ ( i : t | P ) F" :=
+  (bigextr Num.max (index_enum _) (fun i : t => P) (fun i : t => F) x) 
+  (only parsing) : ring_scope.
+Notation "\maxr [ x ]_ ( i : t ) F" :=
+  (\maxr[x]_( i : t | true ) F) (only parsing) : ring_scope.
+Notation "\maxr [ x ]_ ( i < n | P ) F" :=
+  (\maxr[x]_( i : (ordinal n) | P ) F) : ring_scope.
+Notation "\maxr [ x ]_ ( i < n ) F" :=
+  (\maxr[x]_( i : (ordinal n) | true) F) : ring_scope.
+Notation "\maxr [ x ]_ ( i 'in' A | P ) F" :=
+  (\maxr[x]_( i | (i \in A) && P ) F) : ring_scope.
+Notation "\maxr [ x ]_ ( i 'in' A ) F" :=
+  (\maxr[x]_( i | i \in A) F) : ring_scope.
+
+
+Notation "\minr [ x ]_ ( i <- r | P ) F" :=
+  (bigextr Num.min r (fun i => P) (fun i => F) x) : ring_scope.
+Notation "\minr [ x ]_ ( i <- r ) F" :=
+  (\minr[x]_( i <- r | true ) F) : ring_scope.
+Notation "\minr [ x ]_ ( m <= i < n | P ) F" :=
+  (bigextr Num.min (index_iota m n) (fun i => P) (fun i => F) x) : ring_scope.
+Notation "\minr [ x ]_ ( m <= i < n ) F" :=
+  (\minr[x]_( m <= i < n | true ) F) : ring_scope.
+Notation "\minr [ x ]_ ( i | P ) F" :=
+  (bigextr Num.min (index_enum _) (fun i => P) (fun i => F) x) : ring_scope.
+Notation "\minr [ x ]_ i F" :=
+  (\minr[x]_( i | true ) F) : ring_scope.
+Notation "\minr [ x ]_ ( i : t | P ) F" :=
+  (bigextr Num.min (index_enum _) (fun i : t => P) (fun i : t => F) x) 
+  (only parsing) : ring_scope.
+Notation "\minr [ x ]_ ( i : t ) F" :=
+  (\minr[x]_( i : t | true ) F) (only parsing) : ring_scope.
+Notation "\minr [ x ]_ ( i < n | P ) F" :=
+  (\minr[x]_( i : (ordinal n) | P ) F) : ring_scope.
+Notation "\minr [ x ]_ ( i < n ) F" :=
+  (\minr[x]_( i : (ordinal n) | true) F) : ring_scope.
+Notation "\minr [ x ]_ ( i 'in' A | P ) F" :=
+  (\minr[x]_( i | (i \in A) && P ) F) : ring_scope.
+Notation "\minr [ x ]_ ( i 'in' A ) F" :=
+  (\minr[x]_( i | i \in A) F) : ring_scope.
+
+Notation "[ 'arg' 'maxr' [ i0 ]_ ( i <- r | P ) F ]" :=
+  (arg_extr >=%R r (fun i => P) (fun i => F) i0)
+  (at level 0, i, r, i0 at level 10,
+  format "[ 'arg' 'maxr' [ i0 ]_ ( i <- r | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'maxr' [ i0 ]_ ( i <- r ) F ]" :=
+  [arg maxr[i0]_( i <- r | true ) F]
+  (at level 0, i, r, i0 at level 10,
+  format "[ 'arg' 'maxr' [ i0 ]_ ( i <- r ) F ]") : ring_scope.
+Notation "[ 'arg' 'maxr' [ i0 ]_ ( m <= i < n | P ) F ]" :=
+  (arg_extr >=%R (index_iota m n) (fun i => P) (fun i => F) i0) 
+  (at level 0, m, i, n, i0 at level 10,
+  format "[ 'arg' 'maxr' [ i0 ]_ ( m <= i < n | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'maxr' [ i0 ]_ ( m <= i < n ) F ]" :=
+  [arg maxr[i0]_( m <= i < n | true ) F]
+  (at level 0, m, i, n, i0 at level 10,
+  format "[ 'arg' 'maxr' [ i0 ]_ ( m <= i < n ) F ]") : ring_scope.
+Notation "[ 'arg' 'maxr' [ i0 ]_ ( i | P ) F ]" :=
+  (arg_extr >=%R (index_enum _) (fun i => P) (fun i => F) i0)
+  (at level 0, i, i0 at level 10,
+  format "[ 'arg' 'maxr' [ i0 ]_ ( i | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'maxr' [ i0 ]_ i F ]" :=
+  [arg maxr[i0]_( i | true ) F] 
+  (at level 0, i, i0 at level 10,
+  format "[ 'arg' 'maxr' [ i0 ]_ i F ]") : ring_scope.
+Notation "[ 'arg' 'maxr' [ i0 ]_ ( i : t | P ) F ]" :=
+  (arg_extr >=%R (index_enum _) (fun i : t => P) (fun i : t => F) i0)
+  (at level 0, i, i0 at level 10, only parsing,
+  format "[ 'arg' 'maxr' [ i0 ]_ ( i : t | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'maxr' [ i0 ]_ ( i : t ) F ]" :=
+  [arg maxr[i0]_( i : t | true ) F] 
+  (at level 0, i, i0 at level 10, only parsing,
+  format "[ 'arg' 'maxr' [ i0 ]_ ( i : t ) F ]") : ring_scope.
+Notation "[ 'arg' 'maxr' [ i0 ]_ ( i < n | P ) F ]" :=
+  [arg maxr[i0]_( i : (ordinal n) | P ) F] 
+  (at level 0, i, n, i0 at level 10,
+  format "[ 'arg' 'maxr' [ i0 ]_ ( i < n | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'maxr' [ i0 ]_ ( i < n ) F ]" :=
+  [arg maxr[i0]_( i : (ordinal n) | true) F]
+  (at level 0, i, n, i0 at level 10,
+  format "[ 'arg' 'maxr' [ i0 ]_ ( i < n ) F ]") : ring_scope.
+Notation "[ 'arg' 'maxr' [ i0 ]_ ( i 'in' A | P ) F ]" :=
+  [arg maxr[i0]_( i | (i \in A) && P ) F] 
+  (at level 0, i, A, i0 at level 10,
+  format "[ 'arg' 'maxr' [ i0 ]_ ( i 'in' A | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'maxr' [ i0 ]_ ( i 'in' A ) F ]" :=
+  [arg maxr[i0]_( i | i \in A) F] 
+  (at level 0, i, A, i0 at level 10,
+  format "[ 'arg' 'maxr' [ i0 ]_ ( i 'in' A ) F ]") : ring_scope.
+
+
+Notation "[ 'arg' 'minr' [ i0 ]_ ( i <- r | P ) F ]" :=
+  (arg_extr <=%R r (fun i => P) (fun i => F) i0)
+  (at level 0, i, r, i0 at level 10,
+  format "[ 'arg' 'minr' [ i0 ]_ ( i <- r | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'minr' [ i0 ]_ ( i <- r ) F ]" :=
+  [arg minr[i0]_( i <- r | true ) F]
+  (at level 0, i, r, i0 at level 10,
+  format "[ 'arg' 'minr' [ i0 ]_ ( i <- r ) F ]") : ring_scope.
+Notation "[ 'arg' 'minr' [ i0 ]_ ( m <= i < n | P ) F ]" :=
+  (arg_extr <=%R (index_iota m n) (fun i => P) (fun i => F) i0) 
+  (at level 0, m, i, n, i0 at level 10,
+  format "[ 'arg' 'minr' [ i0 ]_ ( m <= i < n | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'minr' [ i0 ]_ ( m <= i < n ) F ]" :=
+  [arg minr[i0]_( m <= i < n | true ) F]
+  (at level 0, m, i, n, i0 at level 10,
+  format "[ 'arg' 'minr' [ i0 ]_ ( m <= i < n ) F ]") : ring_scope.
+Notation "[ 'arg' 'minr' [ i0 ]_ ( i | P ) F ]" :=
+  (arg_extr <=%R (index_enum _) (fun i => P) (fun i => F) i0)
+  (at level 0, i, i0 at level 10,
+  format "[ 'arg' 'minr' [ i0 ]_ ( i | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'minr' [ i0 ]_ i F ]" :=
+  [arg minr[i0]_( i | true ) F] 
+  (at level 0, i, i0 at level 10,
+  format "[ 'arg' 'minr' [ i0 ]_ i F ]") : ring_scope.
+Notation "[ 'arg' 'minr' [ i0 ]_ ( i : t | P ) F ]" :=
+  (arg_extr <=%R (index_enum _) (fun i : t => P) (fun i : t => F) i0)
+  (at level 0, i, i0 at level 10, only parsing,
+  format "[ 'arg' 'minr' [ i0 ]_ ( i : t | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'minr' [ i0 ]_ ( i : t ) F ]" :=
+  [arg minr[i0]_( i : t | true ) F] 
+  (at level 0, i, i0 at level 10, only parsing,
+  format "[ 'arg' 'minr' [ i0 ]_ ( i : t ) F ]") : ring_scope.
+Notation "[ 'arg' 'minr' [ i0 ]_ ( i < n | P ) F ]" :=
+  [arg minr[i0]_( i : (ordinal n) | P ) F] 
+  (at level 0, i, n, i0 at level 10,
+  format "[ 'arg' 'minr' [ i0 ]_ ( i < n | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'minr' [ i0 ]_ ( i < n ) F ]" :=
+  [arg minr[i0]_( i : (ordinal n) | true) F]
+  (at level 0, i, n, i0 at level 10,
+  format "[ 'arg' 'minr' [ i0 ]_ ( i < n ) F ]") : ring_scope.
+Notation "[ 'arg' 'minr' [ i0 ]_ ( i 'in' A | P ) F ]" :=
+  [arg minr[i0]_( i | (i \in A) && P ) F] 
+  (at level 0, i, A, i0 at level 10,
+  format "[ 'arg' 'minr' [ i0 ]_ ( i 'in' A | P ) F ]") : ring_scope.
+Notation "[ 'arg' 'minr' [ i0 ]_ ( i 'in' A ) F ]" :=
+  [arg minr[i0]_( i | i \in A) F] 
+  (at level 0, i, A, i0 at level 10,
+  format "[ 'arg' 'minr' [ i0 ]_ ( i 'in' A ) F ]") : ring_scope.
+
+
 
 Section Poly_int.
 
@@ -2343,6 +2702,9 @@ Variable R : rcfType.
 Implicit Types p : {poly R}.
 Implicit Types x y a b c : R.
 Implicit Types s : seq R.
+
+Definition min_polyitv p a b := 
+  [arg minr[a]_(i <- rcons (roots p^`() a b) b) p.[i]].
 
 Definition min_polyitv p a b :=
   let fix aux p s x :=
@@ -2358,6 +2720,10 @@ Proof. by rewrite /min_polyitv deriv0 roots0 /= !horner0 lerr. Qed.
 
 Lemma min_polyitv_xx p a : min_polyitv p a a = a.
 Proof. by rewrite /min_polyitv rootsEba /= ?lerr. Qed.
+
+Lemma min_polyitvC x a b : min_polyitv x%:P a b = a.
+Proof. by rewrite /min_polyitv derivC roots0 /= !hornerC lerr. Qed.
+
 
 (* We need to return a number even if the interval is empty *)
 (* We return one of the bound of the interval *)
@@ -2426,151 +2792,93 @@ Lemma min_polyitv_cps p a b :
 Proof.
 rewrite ler_eqVlt => /orP[/eqP <-|ltab].
   by rewrite min_polyitv_xx rootsEba ?lerr //= ltrr.
-case: (boolP (a == min_polyitv p a b)) => [/eqP h |].
-  apply/allP => x; rewrite mem_filter -h => /andP[ltxa].
-  rewrite inE (ltr_eqF ltxa) orFb {2}h mem_rcons inE => /orP[/eqP hb|].
-    by move: ltxa; rewrite hb => /(ltr_trans ltab); rewrite ltrr.
-  by move/roots_in/itvP => hx; move/ltrW: ltxa; rewrite hx.
-rewrite neqr_lt => /orP[ltam|]; last first.
-  by have /itvP -> := (min_polyitv_in p (ltrW ltab)).
 apply/allP => x; rewrite mem_filter => /andP[].
-move: ltam.
 have : sorted <%R (a :: (rcons (roots p^`() a b) b)).
   rewrite /= rcons_path path_roots /=.
   have := mem_last a (roots p^`() a b); rewrite inE => /orP[/eqP -> //|].
   by move/roots_in/itvP => ->.
 rewrite /min_polyitv.
-elim: (rcons (roots p^`() a b) b) x {1 3 5 7 8 11}a.
-  by move=> x a' _ _ ltxa; rewrite inE => /eqP h; move: ltxa; rewrite h ltrr.
+elim: (rcons (roots p^`() a b) b) x {1 4 5 8}a.
+  by move=> x a' _ ltxa; rewrite inE => /eqP h; move: ltxa; rewrite h ltrr.
 move=> y l; set f := _ p l => ihl x a' Hsorted.
 have Hsal : sorted <%R (a' :: l).
-  apply: (subseq_sorted (@ltr_trans _) _ Hsorted).
-  rewrite /= eq_refl => {Hsorted ihl f}; case: l => // u s.
-  by case: ifP => _; rewrite ?subseq_cons.
-have Hsyl : sorted <%R (y :: l).
-  by have := Hsorted; rewrite /sorted /= => /andP[].
-case: ifP.
-  move => lepay lta' ltxf; rewrite !inE => /or3P[h|/eqP h|hx].
-  + by apply: ihl => //; rewrite inE h.
-  + rewrite h; apply: (ltr_le_trans _ lepay); apply: ihl => //.
-    by rewrite inE eq_refl.
-  + by apply: ihl => //; rewrite ?inE ?hx ?orbT //.
-move/negP/negP; rewrite -ltrNge => ltpay ltay ltxfy.
-rewrite !inE => /or3P[/eqP h|/eqP h|hx ].
-+ rewrite h; apply/(ler_lt_trans _ ltpay). 
-  rewrite /f => {f ihl ltpay ltay ltxfy Hsal Hsyl Hsorted}; elim: l y => // u s.
-  set f := _ p s; move=> ihs v; case: ifP => [_|].
-    by apply: ihs.
+  apply: (subseq_sorted (@ltr_trans _) _ Hsorted); rewrite /= eq_refl.
+  by case: l {Hsorted ihl f} => // u s; case: ifP => _; rewrite ?subseq_cons.
+have Hsyl : sorted <%R (y :: l) by have := Hsorted; rewrite /sorted => /andP[].
+case: (lerP p.[a'] p.[y]) => lpay ltxf; rewrite !inE => /or3P[/eqP|/eqP|] hx.
++ by apply: ihl => //; rewrite inE hx eq_refl.
++ rewrite hx; apply: (ltr_le_trans _ lpay); apply: ihl => //.
+    apply : (ltr_trans _ ltxf).
+    by have := Hsorted; rewrite /sorted /path -hx => /andP[].
+  by rewrite inE eq_refl.
++ by apply: ihl => //; rewrite ?inE ?hx ?orbT //.
++ rewrite hx; apply/(ler_lt_trans _ lpay). 
+  rewrite /f => {f ihl lpay ltxf Hsal Hsyl Hsorted}; elim: l y => // u s.
+  set f := _ p s; move=> ihs v; case: ifP => [_|]; first by apply: ihs.
   by move/negP/negP; rewrite -ltrNge => /ltrW/(ler_trans (ihs _)).
-+ by apply: ihl => //; rewrite ?inE ?h ?eq_refl // -{1}h.
-apply: ihl => //; rewrite ?inE ?hx ?orbT //=. 
-apply: (ltr_trans _ ltxfy).
-have := Hsyl; rewrite /sorted => /(order_path_min (@ltr_trans _))/allP.
-by apply.
++ by apply: ihl => //; rewrite ?inE ?hx ?eq_refl // -{1}hx.
+by apply: ihl => //; rewrite ?inE ?hx ?orbT //=.
 Qed.
 
-
-
-Lemma min_deriv_sgn_pos a b p : 
-  a < b -> (forall y, y \in `]a, b[ -> p^`().[y] >= 0) -> 
-  forall y, y \in `[a, b] -> p.[a] <= p.[y].
+Lemma min_initv p a b x :
+  x \in `]a, b[ -> p^`().[x] != 0 ->
+  Num.min p.[prev_root p^`() a x] p.[next_root p^`() x b] < p.[x].
 Proof.
-move=> ltab Hd y /itvP yin.
-by apply: (deriv_sign_closed Hd); rewrite ?inE ?yin ?lerr.
+move=> x_ins p'x; set ar := prev_root p^`() a x; set br := next_root p^`() x b.
+have p'n0 : p^`() != 0.
+  by apply/negP => /eqP H; move: p'x; rewrite H horner0 eq_refl.
+have x_inr : x \in `]ar, br[.
+  by rewrite inE prev_root_lt ?next_root_gt ?(itvP x_ins) ?p'n0.
+have ltabr : ar < br by rewrite (itvP x_inr).
+have Hnoroot : forall y, y \in `]ar, br[ -> ~~ root p^`() y.
+  move=> y; rewrite (itv_splitU2 x_inr)=>/or3P[/prev_noroot||/next_noroot] //.
+  by move/eqP => ->; rewrite rootE p'x.
+case: (ltrgt0P p^`().[x]) => [pgt0|plt0|/rootP]; last first.
++ by rewrite rootE (negbTE p'x).
++ apply/(@ler_lt_trans _ p.[br]); first by rewrite ler_minl lerr orbT.
+  rewrite -subr_gt0 -oppr_lt0 opprD -2?hornerN subr_lt0.
+  apply: (@deriv_sign_strict _ ar br); rewrite ?inE ?(itvP x_inr) ?lerr //.
+  move=> y y_in; rewrite derivN hornerN oppr_gt0 -sgr_lt0.
+  by rewrite (polyrN0_itv Hnoroot x_inr y_in) sgr_lt0.
+apply/(@ler_lt_trans _ p.[ar]); first by rewrite ler_minl lerr.
+apply: (@deriv_sign_strict _ ar br); rewrite ?inE ?(itvP x_inr) ?lerr //.
+by move=> y y_in; rewrite -sgr_gt0 (polyrN0_itv Hnoroot x_inr y_in) sgr_gt0.
 Qed.
 
-Lemma min_deriv_sgn_neg a b p :
-  a < b -> (forall y, y \in `]a, b[ -> p^`().[y] <= 0) -> 
-  forall y, y \in `[a, b] -> p.[b] <= p.[y].
-Proof.
-move=> ltab Hd; have HdN : forall y : R, y \in `]a, b[ -> (-p)^`().[y] >= 0.
-  by move=> y y_in; rewrite derivN hornerN oppr_ge0 Hd.
-move=> y /itvP yin; rewrite -subr_ge0 -oppr_le0 opprB -ler_subr_addl sub0r.
-by rewrite -!hornerN; apply:(deriv_sign_closed HdN); rewrite ?inE ?yin ?lerr.
-Qed.
-
-Lemma min_polyitv_min p a b x :
-  a <= b -> p^`() != 0 -> x \in `[a, (min_polyitv p a b)[ -> 
+Lemma min_polyitv_is_mins p a b x :
+  p^`() != 0 -> x \in `[a, (min_polyitv p a b)[ -> 
   p.[min_polyitv p a b] < p.[x].
 Proof.
-move=> leab p'n0.
-rewrite /min_polyitv.
-set f := _ p.
+move=> p'n0 xin.
+case: (boolP (b < a)) => [ltba|]; last rewrite -lerNgt => leab.
+  have: a < min_polyitv p a b by apply:(@ler_lt_trans _ x); rewrite ?(itvP xin).
+  rewrite (min_polyitv_gt p ltba); case: ifP => _; rewrite ?ltrr //.
+  by rewrite ltrNge ler_eqVlt ltba orbT.
+case: (boolP (x == a)) => [/eqP eq_xa |].
+  have /allP/(_ x):= min_polyitv_cps p leab; apply; rewrite mem_filter.
+  by rewrite (itvP xin) eq_xa inE eq_refl.
+rewrite neqr_lt ?(itvP xin) /= => ltax.
+have x_ins : x \in `]a, b[.
+  rewrite inE ltax /=; apply: (@ltr_le_trans _ (min_polyitv p a b)).
+    by rewrite (itvP xin).
+  by rewrite (itvP (min_polyitv_in _ _)).
+case: (boolP (p^`().[x] == 0)) => [/eqP/rootP/(root_in_roots p'n0 x_ins) h|p'x].
+  have /allP/(_ x):= (min_polyitv_cps p leab); apply; rewrite mem_filter.
+  by rewrite (itvP xin) inE mem_rcons inE h !orbT.
+have /(ler_lt_trans _):= (min_initv x_ins p'x); apply.
+rewrite ler_minr; have /allP h := min_polyitv_cp p a b; rewrite !h //.
+  case: next_rootP => [/eqP|y _ /rootP|y _]; first by rewrite (negbTE p'n0).
+  + move=>rooty yin _; rewrite inE mem_rcons inE -root_is_roots ?rooty ?orbT //.
+    by rewrite inE (ltr_trans ltax) ?(itvP yin).
+  rewrite maxr_l ?(itvP x_ins) // => -> _.
+  by rewrite inE mem_rcons inE eq_refl orbT.
+case: prev_rootP => [/eqP|y _ /rootP|y _]; first by rewrite (negbTE p'n0).  
++ move=> rooty yin _; rewrite inE mem_rcons inE -root_is_roots ?rooty ?orbT //.
+  by rewrite inE (@ltr_trans _ x y) ?(itvP yin) ?(itvP x_ins).
+by rewrite minr_l ?(itvP x_ins) // => -> _; rewrite inE eq_refl.
+Qed.
 
-case: (boolP (x == a)) => [/eqP -> |neqxa]. 
-  move: x_in; rewrite /min_polyitv.
-  have: all (fun u => a <= u) (rcons (roots p^`() a b) b).
-    apply/allP => u; rewrite mem_rcons inE => /orP[/eqP -> //|].
-    by move/roots_in/itvP => ->.
-  elim: (rcons (roots p^`() a b) b) {1 3 5 7 }a => [a' _|].
-    by rewrite inE lter_anti.
-move=> u l; set f := _ p l; move=> ihl v /= /andP[levu all_l].
-
-
-case: ifP => [_|].
-  by apply/ihl.
-
-set f := _ p l.
-
-  move=> u l ihl v; case: ifP => [_|/negP/negP]; first by apply: ihl.
-  rewrite -ltrNge => /(ltr_trans _) => h xin. apply: h; apply: ihl.
-
-case: ifP => h.
-  case: ifP.
-    by move=> _; move/ihl.
-  rewrite 
-
-
-  move/ihl; case: ifP => //.
-
-  by move=> u l ihl v; case: ifP => _; apply: ihl.
-
-    rewrite inE lter_anti //.
-  move=> u l.
-  set f := _ p l.
-
-Search _ (_ <= _ < _).
-
-
-first by apply: min_polyitv_cpa.
-
-
-move=> x_in; have x_ins : x \in `]a, b[.
-  by rewrite inE !ltr_neqAle neqxb ?(itvP x_in) eq_sym neqxa.
-set ar := prev_root p^`() a x; set br := next_root p^`() x b.
-have x_inr : x \in `]ar, br[.
-  by rewrite inE prev_root_lt ?next_root_gt ?p'n0 ?(itvP x_ins).
-have ltabr : ar < br by rewrite (itvP x_inr).
-have Hnoroot : p^`().[x] != 0 -> forall y, y \in `]ar, br[ -> ~~ root p^`() y.
-  move=> h y; rewrite (itv_splitU2 x_inr)=>/or3P[/prev_noroot||/next_noroot] //.
-  by move/eqP => ->; rewrite rootE h.
-case: (ltrgt0P p^`().[x]) => [pgt0|plt0|/rootP]; last first.
-+ by rewrite (root_is_roots p'n0 x_ins) => /min_polyitv_cproots.
-+ apply/(@ler_trans _ p.[br])/(min_deriv_sgn_neg ltabr); first last.
-  - by rewrite inE ?(itvP x_inr).
-  - move=> y y_in; apply/ltrW; rewrite -sgr_lt0.
-    by rewrite (polyrN0_itv (Hnoroot (ltr0_neq0 plt0)) x_inr y_in) sgr_lt0.
-  suff : br \in a :: (rcons (roots p^`() a b) b).
-    by have/allP := (min_polyitv_cp p a b); apply.
-  rewrite inE mem_rcons inE /br.
-  case: next_rootP; first by move/eqP; rewrite (negbTE p'n0).
-    move=> y _ /rootP rooty y_in _; rewrite root_in_roots ?orbT //.
-    by rewrite inE (@ltr_trans _ x) ?(itvP y_in) ?(itvP x_ins).
-  by move=> c _; rewrite maxr_l ?(itvP x_in) // => -> _; rewrite eq_refl orbT.
-apply/(@ler_trans _ p.[ar])/(min_deriv_sgn_pos ltabr); first last.
-- by rewrite inE ?(itvP x_inr).
-- move=> y y_in; apply/ltrW; rewrite -sgr_gt0.
-  by rewrite (polyrN0_itv (Hnoroot (lt0r_neq0 pgt0)) x_inr y_in) sgr_gt0.
-suff : ar \in a :: (rcons (roots p^`() a b) b).
-  by have/allP := (min_polyitv_cp p a b); apply.
-rewrite inE mem_rcons inE /ar.
-case: prev_rootP; first by move/eqP; rewrite (negbTE p'n0).
-  move=> y _ /rootP rooty y_in _; rewrite root_in_roots ?orbT //.
-  by rewrite inE [X in _ && X](@ltr_trans _ x) ?(itvP y_in) ?(itvP x_ins).
-by move=> c _; rewrite minr_l ?(itvP x_in) // => -> _; rewrite eq_refl.
-
-
-Lemma min_polyitv_itv p a b x :
+Lemma min_polyitv_is_min p a b x :
   x \in `[a, b] -> p.[min_polyitv p a b] <= p.[x].
 Proof.
 case: (boolP (p^`() == 0)) => [|p'n0].
@@ -2580,41 +2888,125 @@ case: (boolP (x == a)) => [/eqP -> _|neqxa]; first by apply: min_polyitv_cpa.
 case: (boolP (x == b)) => [/eqP -> _|neqxb]; first by apply: min_polyitv_cpb.
 move=> x_in; have x_ins : x \in `]a, b[.
   by rewrite inE !ltr_neqAle neqxb ?(itvP x_in) eq_sym neqxa.
-set ar := prev_root p^`() a x; set br := next_root p^`() x b.
-have x_inr : x \in `]ar, br[.
-  by rewrite inE prev_root_lt ?next_root_gt ?p'n0 ?(itvP x_ins).
-have ltabr : ar < br by rewrite (itvP x_inr).
-have Hnoroot : p^`().[x] != 0 -> forall y, y \in `]ar, br[ -> ~~ root p^`() y.
-  move=> h y; rewrite (itv_splitU2 x_inr)=>/or3P[/prev_noroot||/next_noroot] //.
-  by move/eqP => ->; rewrite rootE h.
-case: (ltrgt0P p^`().[x]) => [pgt0|plt0|/rootP]; last first.
-+ by rewrite (root_is_roots p'n0 x_ins) => /min_polyitv_cproots.
-+ apply/(@ler_trans _ p.[br])/(min_deriv_sgn_neg ltabr); first last.
-  - by rewrite inE ?(itvP x_inr).
-  - move=> y y_in; apply/ltrW; rewrite -sgr_lt0.
-    by rewrite (polyrN0_itv (Hnoroot (ltr0_neq0 plt0)) x_inr y_in) sgr_lt0.
-  suff : br \in a :: (rcons (roots p^`() a b) b).
-    by have/allP := (min_polyitv_cp p a b); apply.
-  rewrite inE mem_rcons inE /br.
-  case: next_rootP; first by move/eqP; rewrite (negbTE p'n0).
-    move=> y _ /rootP rooty y_in _; rewrite root_in_roots ?orbT //.
-    by rewrite inE (@ltr_trans _ x) ?(itvP y_in) ?(itvP x_ins).
-  by move=> c _; rewrite maxr_l ?(itvP x_in) // => -> _; rewrite eq_refl orbT.
-apply/(@ler_trans _ p.[ar])/(min_deriv_sgn_pos ltabr); first last.
-- by rewrite inE ?(itvP x_inr).
-- move=> y y_in; apply/ltrW; rewrite -sgr_gt0.
-  by rewrite (polyrN0_itv (Hnoroot (lt0r_neq0 pgt0)) x_inr y_in) sgr_gt0.
-suff : ar \in a :: (rcons (roots p^`() a b) b).
-  by have/allP := (min_polyitv_cp p a b); apply.
-rewrite inE mem_rcons inE /ar.
-case: prev_rootP; first by move/eqP; rewrite (negbTE p'n0).
-  move=> y _ /rootP rooty y_in _; rewrite root_in_roots ?orbT //.
-  by rewrite inE [X in _ && X](@ltr_trans _ x) ?(itvP y_in) ?(itvP x_ins).
-by move=> c _; rewrite minr_l ?(itvP x_in) // => -> _; rewrite eq_refl.
+have leab : a <= b by apply: (@ler_trans _ x); rewrite ?(itvP x_in).
+case: (boolP (p^`().[x] == 0)) => [/eqP/rootP/(root_in_roots p'n0 x_ins) h|p'x].
+  have /allP/(_ x):= (min_polyitv_cp p a b); apply. 
+  by rewrite inE mem_rcons inE h !orbT.
+have /ltrW/(ler_trans _):= (min_initv x_ins p'x); apply.
+rewrite ler_minr; have /allP h := min_polyitv_cp p a b; rewrite !h //.
+  case: next_rootP => [/eqP|y _ /rootP|y _]; first by rewrite (negbTE p'n0).
+  + move=>rooty yin _; rewrite inE mem_rcons inE -root_is_roots ?rooty ?orbT //.
+    by rewrite inE (@ltr_trans _ x a) ?(itvP yin) ?(itvP x_ins).
+  rewrite maxr_l ?(itvP x_ins) // => -> _.
+  by rewrite inE mem_rcons inE eq_refl orbT.
+case: prev_rootP => [/eqP|y _ /rootP|y _]; first by rewrite (negbTE p'n0).  
++ move=> rooty yin _; rewrite inE mem_rcons inE -root_is_roots ?rooty ?orbT //.
+  by rewrite inE (@ltr_trans _ x y) ?(itvP yin) ?(itvP x_ins).
+by rewrite minr_l ?(itvP x_ins) // => -> _; rewrite inE eq_refl.
 Qed.
 
-Lemma min_polyitv_split p a b c :
-  
+CoInductive min_polyitv_spec p a b : bool -> R -> Type :=
+  | MinPolyitvSpecMin : 
+      forall x, x \in `[a, b] -> (forall y, y \in `[a, x[ -> p.[x] < p.[y]) ->
+      (forall y, y \in `[a, b] -> p.[x] <= p.[y]) ->
+      min_polyitv_spec p a b (x \in `]a, b[) x
+  | MinPolyitvSpecGta :
+      a > b -> p.[a] <= p.[b] -> min_polyitv_spec p a b false a
+  | MinPolyitvSpecGtb :
+      a > b -> p.[a] > p.[b] -> min_polyitv_spec p a b false b.
+
+Lemma min_polyitvP p a b :
+  min_polyitv_spec p a b (min_polyitv p a b \in roots p^`() a b) 
+                   (min_polyitv p a b).
+Proof.
+case: (ltrP b a) => [ltba | leab]; rewrite in_roots.
+  rewrite (min_polyitv_gt p ltba) inE; case: ifP => [ltp | /negP/negP].
+  + by rewrite ltrr andbF; constructor.
+  by rewrite -ltrNge ltrr !andbF; constructor.
+case: (boolP (p^`() == 0)) => [| p'n0].
+  rewrite -size_poly_eq0 size_deriv -leqn0 -ltnS.
+  move/(leq_trans (leqSpred _))/size1_polyC => -> .
+  rewrite min_polyitvC !andbF.
+  have <- : a \in `]a, b[ = false by rewrite inE ltrr.
+  constructor; first by rewrite inE lerr leab.
+  + by move=> y; rewrite inE lter_anti.
+  by move=> y _; rewrite !hornerC lerr.
+case: (boolP (min_polyitv p a b == a)) => [/eqP eqma|/negbTE neqma].
++ rewrite eqma inE ltrr andbF.
+  have <- : a \in `]a, b[ = false by rewrite inE ltrr.
+  constructor; first by rewrite inE lerr leab.
+  + by move=> y; rewrite inE lter_anti.
+  by move=> y y_in; rewrite -eqma; apply: min_polyitv_is_min.
+case: (boolP (min_polyitv p a b == b)) => [/eqP eqmb|/negbTE neqmb].
++ rewrite eqmb inE ltrr !andbF.
+  have <- : b \in `]a, b[ = false by rewrite inE ltrr andbF.
+  constructor; first by rewrite inE lerr leab.
+  + by move=> y; rewrite -eqmb => y_i; apply: min_polyitv_is_mins.
+  by move=> y y_in; rewrite -eqmb; apply: min_polyitv_is_min.
+have := min_polyitv_inseq p a b; rewrite inE mem_rcons inE neqma neqmb /=.
+move/root_roots => -> /=; rewrite andbT; constructor.
++ by apply: min_polyitv_in.
++ by move=> y; apply: min_polyitv_is_mins.
+by apply: min_polyitv_is_min.
+Qed.
+
+Lemma min_polyitv_eq p a b x :
+  x \in `[a, b] -> (forall y, y \in `[a, x[ -> p.[x] < p.[y]) ->
+  (forall y, y \in `[a, b] -> p.[x] <= p.[y]) ->
+  min_polyitv p a b == x.
+Proof.
+move=> x_in x_mins x_min.
+have ltba : (b < a) = false by apply/negP/negP; rewrite -lerNgt (itvP x_in).
+case: min_polyitvP => [||]; rewrite ?ltba //.
+move=> y y_in y_mins y_min; case: (ltrgtP y x) => [ltyx|ltxy|] //.
++ have /x_mins : y \in `[a, x[ by rewrite inE ltyx (itvP y_in).
+  by move/(ler_lt_trans (y_min _ x_in)); rewrite ltrr.
+have /y_mins : x \in `[a, y[ by rewrite inE ltxy (itvP x_in).
+by move/(ler_lt_trans (x_min _ y_in)); rewrite ltrr.
+Qed.
+
+Lemma min_polyitv_split p b a c :
+  b \in `[a, c] ->
+  min_polyitv p a c = if (p.[min_polyitv p a b] <= p.[min_polyitv p b c])
+                      then min_polyitv p a b
+                      else min_polyitv p b c.
+Proof.
+move=> /andP[leab lebc]; case: (boolP (p^`() == 0)) => [| p'n0].
+  rewrite -size_poly_eq0 size_deriv -leqn0 -ltnS.
+  move/(leq_trans (leqSpred _))/size1_polyC => ->.
+  by rewrite !min_polyitvC !hornerC lerr.
+apply/eqP/min_polyitv_eq.
++ rewrite inE; case: ifP => _.
+    by rewrite (ler_trans _ lebc) (itvP (min_polyitv_in _ leab)).
+  by rewrite (ler_trans leab) (itvP (min_polyitv_in _ lebc)).  
++ case: ifP => [|/negP/negP]; rewrite -?ltrNge => ltep x /itvP x_in.
+    by apply: min_polyitv_is_mins => //; rewrite inE !x_in.
+  case: (ltrP x b) => ltexb.
+    apply/(ltr_le_trans ltep)/min_polyitv_is_min => //.
+    by rewrite inE x_in (ltrW ltexb).
+  by apply/min_polyitv_is_mins => //; rewrite inE x_in ltexb.
+move=> x /itvP x_in; case: ifP => [|/negP/negP]; rewrite -?ltrNge => ltep.
++ case: (ltrP x b) => ltexb.
+    by apply/min_polyitv_is_min; rewrite inE x_in (ltrW ltexb).
+  by apply/(ler_trans ltep)/min_polyitv_is_min; rewrite inE ltexb x_in.
+case: (ltrP x b) => ltexb.
+  by apply/(ler_trans (ltrW ltep))/min_polyitv_is_min; rewrite inE x_in ltrW.
+by apply/min_polyitv_is_min; rewrite inE ltexb x_in.
+Qed.
+
+Lemma min_polyitv_reduce p a b c d :
+  {subset `[c, d] <= `[a, b]} ->
+  min_polyitv p a b \in `[c, d] -> min_polyitv p a b = min_polyitv p c d.
+Proof.
+move=> Hsub min_in; have : c \in `[a, b].
+  by apply: Hsub; rewrite inE lerr (itvP min_in).
+move/(min_polyitv_split p) => h.
+move: min_in; rewrite h.
+
+  by apply: Hsub; rewrite inE lerr (itvP min_in).
+
+
+rewrite ifN.
 
     
 Definition max_polyitv p a b := min_polyitv (-p) a b.
